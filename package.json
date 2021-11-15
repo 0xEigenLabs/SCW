@@ -1,0 +1,33 @@
+{
+  "name": "multi-sig-wallet",
+  "version": "1.0.0",
+  "description": "EigenSecret multi-sig contract wallet",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm -rf build dist typechain cache artifacts",
+    "build": "hardhat compile",
+    "test": "yarn build && npx hardhat test --network l1"
+  },
+  "author": "Eigen Lab",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.4.0",
+    "hardhat": "^2.6.8",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.4.4",
+    "web3": "^1.6.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.3.0",
+    "@typechain/ethers-v5": "^7.0.1",
+    "@typechain/hardhat": "^3.0.0",
+    "@types/mocha": "^9.0.0",
+    "dotenv": "^10.0.0",
+    "tslint": "^6.1.3",
+    "typechain": "^5.0.0"
+  }
+}
