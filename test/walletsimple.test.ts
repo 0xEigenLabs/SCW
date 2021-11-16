@@ -888,22 +888,23 @@ coins.forEach(({ name: coinName, nativePrefix, tokenPrefix, walletSimpleName }) 
 
       it('Multiple forward contracts', async function() {
         const numForwardAddresses = 10;
-        const etherEachSend = utils.parseEther("4");
+        const etherEachSend = utils.parseEther("0.1");
         const wallet = await contractFactory.deploy([accounts[2], accounts[3], accounts[4]]);
 
         // Create forwarders and send 4 ether to each of the addresses
         for (let i=0; i < numForwardAddresses; i++) {
           const forwarder = await helpers.createForwarderFromWallet(wallet);
-          let res = await EOASigners[1].sendTransaction(
+          let res = await EOASigners[0].sendTransaction(
               { to: forwarder.address, value: etherEachSend },
               { gasLimit: 210000, gasPrice: 1 }
           );
-          await res.wait()
+          let rec = await res.wait()
+          expect(rec.status).eq(1)
         }
 
         // Verify all the forwarding is complete
         expect(await provider.getBalance(wallet.address)).eq(etherEachSend.mul(numForwardAddresses));
-      });
+      }).timeout(10000000);
 
       //FIXME
       /*
