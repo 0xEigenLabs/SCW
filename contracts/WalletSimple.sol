@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.6.11;
 import "./Forwarder.sol";
+import "./IWalletSimple.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
  *
@@ -28,7 +29,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *
  *
  */
-contract WalletSimple {
+contract WalletSimple is IWalletSimple {
   // Events
   event Deposited(address from, uint value, bytes data);
   event SafeModeActivated(address msgSender);
@@ -47,7 +48,11 @@ contract WalletSimple {
 
   // Internal fields
   uint constant SEQUENCE_ID_WINDOW_SIZE = 10;
-  uint[10] recentSequenceIds;
+  uint[10] recentSequenceIds_;
+  uint constant RECOVERY_SECURITY_PERIOD = 120;
+
+  //social recovery
+  Recovery public recovery;
 
   /**
    * Set up a simple multi-sig wallet by specifying the signers allowed to be used on this wallet.
@@ -75,6 +80,14 @@ contract WalletSimple {
       }
     }
     return false;
+  }
+
+  /**
+   * Modifier that will check if sender is owner
+   */
+  modifier onlySelf() {
+    require(msg.sender == address(this), "only self");
+    _;
   }
 
   /**
@@ -272,25 +285,25 @@ contract WalletSimple {
     // Keep a pointer to the lowest value element in the window
     uint lowestValueIndex = 0;
     for (uint i = 0; i < SEQUENCE_ID_WINDOW_SIZE; i++) {
-      if (recentSequenceIds[i] == sequenceId) {
+      if (recentSequenceIds_[i] == sequenceId) {
         // This sequence ID has been used before. Disallow!
         revert();
       }
-      if (recentSequenceIds[i] < recentSequenceIds[lowestValueIndex]) {
+      if (recentSequenceIds_[i] < recentSequenceIds_[lowestValueIndex]) {
         lowestValueIndex = i;
       }
     }
-    if (sequenceId < recentSequenceIds[lowestValueIndex]) {
+    if (sequenceId < recentSequenceIds_[lowestValueIndex]) {
       // The sequence ID being used is lower than the lowest value in the window
       // so we cannot accept it as it may have been used before
       revert();
     }
-    if (sequenceId > (recentSequenceIds[lowestValueIndex] + 10000)) {
+    if (sequenceId > (recentSequenceIds_[lowestValueIndex] + 10000)) {
       // Block sequence IDs which are much higher than the lowest value
       // This prevents people blocking the contract by using very large sequence IDs quickly
       revert();
     }
-    recentSequenceIds[lowestValueIndex] = sequenceId;
+    recentSequenceIds_[lowestValueIndex] = sequenceId;
   }
 
   /**
@@ -300,10 +313,47 @@ contract WalletSimple {
   function getNextSequenceId() public view returns (uint) {
     uint highestSequenceId = 0;
     for (uint i = 0; i < SEQUENCE_ID_WINDOW_SIZE; i++) {
-      if (recentSequenceIds[i] > highestSequenceId) {
-        highestSequenceId = recentSequenceIds[i];
+      if (recentSequenceIds_[i] > highestSequenceId) {
+        highestSequenceId = recentSequenceIds_[i];
       }
     }
     return highestSequenceId + 1;
+  }
+
+  // social recover
+  /**
+   * Declare a recovery, executed by contract itself, called by sendMultiSig.
+   * @param _recovery: lost signer
+   */
+  function triggerRecovery(address _recovery) public onlySelf {
+    require(isSigner(_recovery), "invalid _recovery");
+
+    if (recovery.activeAt != 0 && recovery.activeAt > block.timestamp) {
+       require(isSigner(recovery.caller), "invalid recovery.caller");
+       require(recovery.caller != _recovery, "Should not repeatly recovery");
+    }
+
+    recovery = Recovery(uint96(block.timestamp + RECOVERY_SECURITY_PERIOD), _recovery);
+  }
+
+  function cancelRecovery() public onlySelf {
+    //require(recovery.activeAt != 0 && recovery.caller != address(0), "not recovering");
+    require(recovery.activeAt <= block.timestamp, "not recovering");
+    delete recovery;
+  }
+
+  function recoverySigner(address _newSigner) public onlySelf {
+    require(_newSigner != address(0), "null _newSigner");
+    require(isSigner(recovery.caller), "invalid recovery.caller");
+    require(isSigner(_newSigner), "invalid _newSigner");
+    require(recovery.activeAt <= block.timestamp, "no active recovery");
+
+    for (uint i = 0; i < signers.length; i++) {
+      if (signers[i] == recovery.caller) {
+          signers[i] = _newSigner;
+          return;
+      }
+    }
+    delete recovery;
   }
 }

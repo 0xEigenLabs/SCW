@@ -10,6 +10,8 @@ import { WalletSimple } from "../typechain/WalletSimple"
 import { EtcWalletSimple } from "../typechain/EtcWalletSimple"
 import { AvaxWalletSimple } from "../typechain/AvaxWalletSimple"
 import { RskWalletSimple } from "../typechain/RskWalletSimple"
+import { Forwarder } from "../typechain/Forwarder"
+import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
 
 const provider = ethers.provider;
 
@@ -150,6 +152,7 @@ exports.getNextContractAddress = async (address: string) => {
     from: address,
     nonce: nonce
   };
+  console.log("nonce", transaction)
   return utils.getContractAddress(transaction)
 };
 
@@ -162,9 +165,8 @@ export function toHexString(byteArray) {
 }
 
 export const createForwarderFromWallet = async (wallet) => {
-    const forwarderAddress = exports.getNextContractAddress(wallet.address);
+    const forwarderAddress = await exports.getNextContractAddress(wallet.address);
     let res = await wallet.createForwarder();
     await res.wait()
-    const Forwarder = await ethers.getContractFactory('Forwarder');
-    return Forwarder.attach(forwarderAddress);
+    return await Forwarder__factory.connect(forwarderAddress, provider)
 };

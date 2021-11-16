@@ -2,7 +2,6 @@ const { waffle, ethers } = require("hardhat");
 import { Wallet, utils, BigNumber, providers } from "ethers"
 
 const helpers = require('./helpers');
-const config = require('./config');
 import { expect } from "chai"
 import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
 import { Forwarder } from "../typechain/Forwarder"
