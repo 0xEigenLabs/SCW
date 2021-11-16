@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.6.11;
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/proxy/Initializable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "./Forwarder.sol";
 import "./IWalletSimple.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 /**
  *
  * WalletSimple
@@ -29,7 +33,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *
  *
  */
-contract WalletSimple is IWalletSimple {
+contract WalletSimple is IWalletSimple, Ownable, Initializable {
   // Events
   event Deposited(address from, uint value, bytes data);
   event SafeModeActivated(address msgSender);
@@ -63,6 +67,11 @@ contract WalletSimple is IWalletSimple {
    * @param allowedSigners An array of signers on the wallet
    */
   constructor(address[] memory allowedSigners) public {
+    require(allowedSigners.length == 3, "Invalid guardians");
+    signers = allowedSigners;
+  }
+
+  function initialize(address[] memory allowedSigners) public initializer {
     require(allowedSigners.length == 3, "Invalid guardians");
     signers = allowedSigners;
   }
