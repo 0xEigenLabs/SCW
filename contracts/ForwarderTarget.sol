@@ -22,8 +22,7 @@ contract ForwarderTarget {
     return b;
   }
 
-  function createForwarder() public {
-    new Forwarder();
+  function createForwarder() public returns (address) {
+    return address(new Forwarder());
   }
-
 }
