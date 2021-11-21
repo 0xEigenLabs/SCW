@@ -55,9 +55,6 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable {
   uint[10] recentSequenceIds_;
   uint constant RECOVERY_SECURITY_PERIOD = 120;
 
-  //social recovery
-  Recovery public recovery;
-
   /**
    * Set up a simple multi-sig wallet by specifying the signers allowed to be used on this wallet.
    * 2 signers will be required to send a transaction from this wallet.
@@ -92,20 +89,10 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable {
   }
 
   /**
-   * Modifier that will check if sender is owner
-   */
-  modifier onlySelf() {
-    require(msg.sender == address(this), "only self");
-    _;
-  }
-
-  /**
    * Modifier that will execute internal code block only if the sender is an authorized signer on this wallet
    */
   modifier onlySigner {
-    if (!isSigner(msg.sender)) {
-      revert();
-    }
+    require(isSigner(msg.sender), "Not signer")
     _;
   }
 
@@ -327,42 +314,5 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable {
       }
     }
     return highestSequenceId + 1;
-  }
-
-  // social recover
-  /**
-   * Declare a recovery, executed by contract itself, called by sendMultiSig.
-   * @param _recovery: lost signer
-   */
-  function triggerRecovery(address _recovery) public onlySelf {
-    require(isSigner(_recovery), "invalid _recovery");
-
-    if (recovery.activeAt != 0 && recovery.activeAt > block.timestamp) {
-       require(isSigner(recovery.caller), "invalid recovery.caller");
-       require(recovery.caller != _recovery, "Should not repeatly recovery");
-    }
-
-    recovery = Recovery(uint96(block.timestamp + RECOVERY_SECURITY_PERIOD), _recovery);
-  }
-
-  function cancelRecovery() public onlySelf {
-    //require(recovery.activeAt != 0 && recovery.caller != address(0), "not recovering");
-    require(recovery.activeAt <= block.timestamp, "not recovering");
-    delete recovery;
-  }
-
-  function recoverySigner(address _newSigner) public onlySelf {
-    require(_newSigner != address(0), "null _newSigner");
-    require(isSigner(recovery.caller), "invalid recovery.caller");
-    require(isSigner(_newSigner), "invalid _newSigner");
-    require(recovery.activeAt <= block.timestamp, "no active recovery");
-
-    for (uint i = 0; i < signers.length; i++) {
-      if (signers[i] == recovery.caller) {
-          signers[i] = _newSigner;
-          return;
-      }
-    }
-    delete recovery;
   }
 }
