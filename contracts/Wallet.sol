@@ -7,11 +7,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Forwarder.sol";
 import "./SecurityModule.sol";
 import "./BaseModule.sol";
-import "./IWalletSimple.sol";
+import "./IWallet.sol";
 
 /**
  *
- * WalletSimple
+ * Wallet
  * ============
  *
  * Basic multi-signer wallet designed for use in a co-signing environment where 2 signatures are required to move funds.
@@ -35,7 +35,7 @@ import "./IWalletSimple.sol";
  *
  *
  */
-contract WalletSimple is IWalletSimple, Ownable, Initializable, BaseModule {
+contract Wallet is IWallet, Ownable, Initializable, BaseModule {
     // Events
     event Deposited(address from, uint value, bytes data);
     event SafeModeActivated(address msgSender);
@@ -49,6 +49,7 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable, BaseModule {
     );
 
     // Public fields
+        // Public fields
     address[] public signers; // The addresses that can co-sign transactions on the wallet
     bool public safeMode = false; // When active, wallet may only send to signer addresses
 
@@ -91,11 +92,8 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable, BaseModule {
         return false;
     }
 
-    /**
-    * Modifier that will execute internal code block only if the sender is an authorized signer on this wallet
-    */
-    modifier onlySigner {
-        require(isSigner(msg.sender), "Not signer");
+    modifier onlySigner() {
+        require(isSigner(msg.sender), "Invalid Signer");
         _;
     }
 
@@ -108,15 +106,6 @@ contract WalletSimple is IWalletSimple, Ownable, Initializable, BaseModule {
             emit Deposited(msg.sender, msg.value, msg.data);
         }
     }
-
-    /*
-    receive() external payable {
-    if (msg.value > 0) {
-// Fire deposited event if we are receiving funds
-emit Deposited(msg.sender, msg.value, msg.data);
-}
-}
-     */
 
     /**
      * Create a new contract (and also address) that forwards funds to this contract
@@ -317,13 +306,5 @@ emit Deposited(msg.sender, msg.value, msg.data);
             }
         }
         return highestSequenceId + 1;
-    }
-
-    function recoverSigner(address _newSigner) public onlySigner {
-        require(_newSigner != address(0), "null _newSigner");
-        require(isSigner(_newSigner), "invalid _newSigner");
-        uint index = securityModule_.recoverSigner(signers);
-        signers[index] = _newSigner;
-        //TODO emit event
     }
 }

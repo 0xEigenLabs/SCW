@@ -4,7 +4,7 @@ pragma solidity ^0.6.11;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./WalletSimple.sol";
+import "./Wallet.sol";
 
 contract WalletFactory {
     address public master;

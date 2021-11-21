@@ -10,4 +10,8 @@ contract BaseModule {
     require(msg.sender == address(this), "only self");
     _;
   }
+
+  function _isSelf(address self) internal returns (bool) {
+      return msg.sender == address(this);
+  }
 }
