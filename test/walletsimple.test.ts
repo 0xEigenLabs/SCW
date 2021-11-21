@@ -867,20 +867,31 @@ coins.forEach(({ name: coinName, nativePrefix, tokenPrefix, walletSimpleName }) 
           expect(rec.status).eq(1)
           expect(await forwarderTarget.data()).eq(BigNumber.from(0));
 
-          /* // FIXME
-          let log = await helpers.readForwarderDepositedLog(walletSimpleName, forwarderTarget, EOASigners[0], rec)
+          let log
+          /*
+          let log = await helpers.readForwarderDepositedLog(
+              walletSimpleName, forwarder, EOASigners[0], rec)
           expect(log.length).eq(1);
           */
 
           // Same for setDataWithValue()
-          const oldBalance = await provider.getBalance(forwarderTarget.address);
+          let oldBalance = await provider.getBalance(forwarderTarget.address);
           res = await forwarderAsTarget.setDataWithValue(newData + 1, setDataReturn, { value: 100 });
           rec = await res.wait()
           expect(await forwarderTarget.data()).eq(BigNumber.from(0));
           (await provider.getBalance(forwarderTarget.address)).eq(oldBalance.add(100));
 
+          oldBalance = await provider.getBalance(forwarderTarget.address);
+          res = await EOASigners[0].sendTransaction(
+              { to: forwarderAsTarget.address, value: 10000, data: newData},
+              { gasLimit: 210000, gasPrice: 1000 }
+          );
+          (await provider.getBalance(forwarderTarget.address)).eq(oldBalance.add(10000));
+
+          rec = await res.wait()
           /*
-          let log = await helpers.readForwarderDepositedLog(walletSimpleName, forwarderTarget, EOASigners[0], rec)
+          console.log(rec)
+          log = await helpers.readForwarderDepositedLog(walletSimpleName, forwarder, EOASigners[0], rec)
           expect(log.length).eq(1);
           */
         }
@@ -928,7 +939,7 @@ coins.forEach(({ name: coinName, nativePrefix, tokenPrefix, walletSimpleName }) 
         expect(await provider.getBalance(wallet.address)).eq(BigNumber.from(0));
 
         // Flush and verify
-        (await forwardContract.attach(forwarderContractAddress)).flush();
+        await (await forwardContract.attach(forwarderContractAddress)).flush();
         expect(await provider.getBalance(forwarderContractAddress)).eq(BigNumber.from(0));
         expect(await provider.getBalance(wallet.address)).eq(amount);
       });
@@ -950,7 +961,7 @@ coins.forEach(({ name: coinName, nativePrefix, tokenPrefix, walletSimpleName }) 
         expect(await provider.getBalance(wallet.address)).eq(BigNumber.from(0));
 
         // Flush and verify
-        (await forwardContract.attach(forwarder.address)).flush();
+        await (await forwardContract.attach(forwarder.address)).flush();
         expect(await provider.getBalance(forwarder.address)).eq(BigNumber.from(0));
         expect(await provider.getBalance(wallet.address)).eq(amount);
       });*/

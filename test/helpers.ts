@@ -2,14 +2,8 @@ const { ethers, waffle } = require("hardhat");
 import { BigNumber, utils } from "ethers"
 
 import { WalletSimple__factory } from "../typechain/factories/WalletSimple__factory"
-import { EtcWalletSimple__factory } from "../typechain/factories/EtcWalletSimple__factory"
-import { AvaxWalletSimple__factory } from "../typechain/factories/AvaxWalletSimple__factory"
-import { RskWalletSimple__factory } from "../typechain/factories/RskWalletSimple__factory"
 
 import { WalletSimple } from "../typechain/WalletSimple"
-import { EtcWalletSimple } from "../typechain/EtcWalletSimple"
-import { AvaxWalletSimple } from "../typechain/AvaxWalletSimple"
-import { RskWalletSimple } from "../typechain/RskWalletSimple"
 import { Forwarder } from "../typechain/Forwarder"
 import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
 
@@ -47,15 +41,6 @@ async function getWalletInstance(walletName, contract, signer) {
         case "WalletSimple":
             wallet = await WalletSimple__factory.connect(contract, signer)
             break
-        case "EtcWalletSimple":
-            wallet = await EtcWalletSimple__factory.connect(contract, signer)
-            break
-        case "AvaxWalletSimple":
-            wallet = await AvaxWalletSimple__factory.connect(contract, signer)
-            break
-        case "RskWalletSimple":
-            wallet = await RskWalletSimple__factory.connect(contract, signer)
-            break
     }
     return wallet
 }
@@ -86,7 +71,6 @@ export const readSafeModeActivatedLog = async (walletName, contract, signer, rec
         log => (iface.parseLog(log).args as unknown) as SafeModeActivated
     )
 }
-
 
 export interface ForwarderDeposited {
     from: string
@@ -152,7 +136,6 @@ exports.getNextContractAddress = async (address: string) => {
     from: address,
     nonce: nonce
   };
-  console.log("nonce", transaction)
   return utils.getContractAddress(transaction)
 };
 
