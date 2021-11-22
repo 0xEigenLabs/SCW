@@ -5,7 +5,7 @@ Eigen SSI allows you:
 - [x] Use multi-signature to manager your asset
 - [x] Recover your account by social recovery
 - [ ] Lockable and Daily Payment Limit
-- [ ] ENS support
+- [ ] ENS and subdomain managerment
 
 Implemented by Hardhat and OpenZeppelin, aims to be:
 * Upgradeable and Modular;
