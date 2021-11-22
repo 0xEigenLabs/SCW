@@ -46,22 +46,6 @@ contract Forwarder {
   */
 
   /**
-   * Execute a token transfer of the full balance from the forwarder token to the parent address
-   * @param tokenContractAddress the address of the erc20 token contract
-   */
-  function flushTokens(address tokenContractAddress) public onlyParent {
-    IERC20 instance = IERC20(tokenContractAddress);
-    address payable forwarderAddress = address(this);
-    uint256 forwarderBalance = instance.balanceOf(forwarderAddress);
-    if (forwarderBalance == 0) {
-      return;
-    }
-    if (!instance.transfer(parentAddress, forwarderBalance)) {
-      revert();
-    }
-  }
-
-  /**
    * It is possible that funds were sent to this address before the contract was deployed.
    * We can flush those funds to the parent address.
    */

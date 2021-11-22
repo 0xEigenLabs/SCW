@@ -11,7 +11,7 @@ contract BaseModule {
     _;
   }
 
-  function _isSelf(address self) internal returns (bool) {
-      return msg.sender == address(this);
+  function _isSelf(address _self) internal view returns (bool) {
+      return _self == address(this);
   }
 }

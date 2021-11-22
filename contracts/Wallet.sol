@@ -35,7 +35,7 @@ import "./IWallet.sol";
  *
  *
  */
-contract Wallet is IWallet, Ownable, Initializable, BaseModule {
+contract Wallet is IWallet, Ownable, Initializable {
     // Events
     event Deposited(address from, uint value, bytes data);
     event SafeModeActivated(address msgSender);
@@ -144,50 +144,6 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
         (bool success, ) = toAddress.call{value:value}(data);
         require(success, "Transfer failed");
         emit Transacted(msg.sender, otherSigner, operationHash, toAddress, value, data);
-    }
-
-    /**
-    * Execute a multi-signature token transfer from this wallet using 2 signers: one from msg.sender and the other from ecrecover.
-    * Sequence IDs are numbers starting from 1. They are used to prevent replay attacks and may not be repeated.
-    *
-    * @param toAddress the destination address to send an outgoing transaction
-    * @param value the amount in tokens to be sent
-    * @param tokenContractAddress the address of the erc20 token contract
-    * @param expireTime the number of seconds since 1970 for which this transaction is valid
-    * @param sequenceId the unique sequence id obtainable from getNextSequenceId
-    * @param signature see Data Formats
-     */
-    function sendMultiSigToken(
-        address toAddress,
-        uint value,
-        address tokenContractAddress,
-        uint expireTime,
-        uint sequenceId,
-        bytes memory signature
-    ) public onlySigner {
-        // Verify the other signer
-        bytes32 operationHash = keccak256(abi.encodePacked("ERC20", toAddress, value, tokenContractAddress, expireTime, sequenceId));
-
-        verifyMultiSig(toAddress, operationHash, signature, expireTime, sequenceId);
-
-        IERC20 instance = IERC20(tokenContractAddress);
-        if (!instance.transfer(toAddress, value)) {
-            revert();
-        }
-    }
-
-    /**
-    * Execute a token flush from one of the forwarder addresses. This transfer needs only a single signature and can be done by any signer
-    *
-        * @param forwarderAddress the address of the forwarder address to flush the tokens from
-        * @param tokenContractAddress the address of the erc20 token contract
-     */
-    function flushForwarderTokens(
-        address payable forwarderAddress, 
-        address tokenContractAddress
-    ) public onlySigner {
-        Forwarder forwarder = Forwarder(forwarderAddress);
-        forwarder.flushTokens(tokenContractAddress);
     }
 
     /**
