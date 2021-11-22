@@ -8,7 +8,7 @@ Eigen SSI allows you:
 - [ ] ENS and subdomain managerment
 
 Implemented by Hardhat and OpenZeppelin, aims to be:
-* Upgradeable and Modular;
+* Upgradeable and Modular
 * Security
 * Scalablity
 * Simplicity
