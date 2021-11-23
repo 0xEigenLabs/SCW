@@ -1,9 +1,9 @@
 const { ethers, waffle } = require("hardhat");
 import { BigNumber, utils } from "ethers"
 
-import { WalletSimple__factory } from "../typechain/factories/WalletSimple__factory"
+import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
-import { WalletSimple } from "../typechain/WalletSimple"
+import { Wallet } from "../typechain/Wallet"
 import { Forwarder } from "../typechain/Forwarder"
 import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
 
@@ -39,7 +39,7 @@ async function getWalletInstance(walletName, contract, signer) {
     let wallet
     switch (walletName) {
         case "WalletSimple":
-            wallet = await WalletSimple__factory.connect(contract, signer)
+            wallet = await Wallet__factory.connect(contract, signer)
             break
     }
     return wallet

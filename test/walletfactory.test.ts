@@ -1,7 +1,7 @@
 const { waffle, ethers } = require("hardhat");
 import { Wallet, utils, BigNumber, providers } from "ethers"
 
-import { WalletSimple__factory } from "../typechain/factories/WalletSimple__factory"
+import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
 import { expect } from "chai"
 
@@ -23,12 +23,13 @@ describe('Wallet Factory Test', () => {
 
   let owner
   let accounts
+  const modules = ["0xfa"]
   before(async function() {
     [owner] = await ethers.getSigners();
     accounts = await provider.listAccounts()
   })
   it("Should deploy master wallet contract", async function () {
-    wallet = await (await ethers.getContractFactory("WalletSimple")).deploy([accounts[1], accounts[2], accounts[3]]);
+    wallet = await (await ethers.getContractFactory("Wallet")).deploy([accounts[1], accounts[2], accounts[3]], modules);
     await wallet.deployed()
     walletStandaloneGas = await getGas(wallet.deployTransaction)
     expect(wallet.address).to.exist;
@@ -49,13 +50,13 @@ describe('Wallet Factory Test', () => {
     await tx.wait()
     walletProxyGas = await getGas(tx)
 
-    const wallet1 = WalletSimple__factory.connect(walletAddress, owner)
+    const wallet1 = Wallet__factory.connect(walletAddress, owner)
     expect(wallet1.address).to.equal(walletAddress)
 
-    let initTx = await wallet1.initialize([accounts[1], accounts[2], accounts[3]]);
+    let initTx = await wallet1.initialize([accounts[1], accounts[2], accounts[3]], modules);
     await initTx.wait()
 
-    await expect(wallet1.initialize([accounts[1], accounts[2], accounts[3]])).to.be.revertedWith(
+    await expect(wallet1.initialize([accounts[1], accounts[2], accounts[3]], modules)).to.be.revertedWith(
       "contract is already initialized"
     )
 
