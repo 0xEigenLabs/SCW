@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.6.11;
 
-contract BaseModule {
+import "./IMoudle.sol";
+
+abstract contract BaseModule is IModule {
 
   /**
    * Modifier that will check if sender is owner
@@ -12,6 +14,6 @@ contract BaseModule {
   }
 
   function _isSelf(address _self) internal view returns (bool) {
-      return _self == address(this);
+    return _self == address(this);
   }
 }
