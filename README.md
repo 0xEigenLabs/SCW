@@ -1,4 +1,4 @@
-# Eigen Self-Sovereign Identity
+# Eigen Non-Custodial Wallet
 
 Eigen NCW(Non-custodial Wallet) allows you:
 
