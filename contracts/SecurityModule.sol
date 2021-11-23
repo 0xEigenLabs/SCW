@@ -4,6 +4,7 @@ pragma solidity ^0.6.11;
 import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "./BaseModule.sol";
 import "./GuardiansStorage.sol";
+import "./IWallet.sol";
 
 contract SecurityModule is BaseModule {
 
@@ -13,7 +14,7 @@ contract SecurityModule is BaseModule {
     struct Recovery {
         uint64 activeAt; // timestamp for activation of escape mode, 0 otherwise
         address caller;
-//        uint32 guardianCount; //unused now
+        address removed;
     }
 
     struct Lock {
@@ -23,7 +24,18 @@ contract SecurityModule is BaseModule {
         bytes4 locker;
     }
 
-     /**
+    // TODO
+    function init(address _wallet) external override onlySelf {
+    }
+
+    /**
+     */
+    function addModule(address _wallet, address _module) external override onlySelf onlyWhenUnlocked(_wallet) {
+        // TODO check if the module existing
+        IWallet(_wallet).authoriseModule(_module, true);
+    }
+
+    /**
      * @notice Throws if the caller is not a guardian for the wallet or the module itself.
      */
     modifier onlyGuardianOrSelf(address _wallet) {
@@ -32,7 +44,7 @@ contract SecurityModule is BaseModule {
     }
 
     //social recovery
-    Recovery internal recovery;
+    Recovery internal recovery_;
     GuardiansStorage internal guardianStorage_;
 
     // Wallet specific lock storage
@@ -43,34 +55,54 @@ contract SecurityModule is BaseModule {
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
      * @param _recovery: lost signer
      */
-    function triggerRecovery(address _recovery, address _wallet) public onlySelf {
+    function triggerRecovery(address _wallet, address _recovery, address _removed) external onlySelf {
         require(guardianStorage_.isGuardian(_wallet, _recovery), "invalid _recovery");
 
-        if (recovery.activeAt != 0 && recovery.activeAt > uint64(block.timestamp)) {
-            require(guardianStorage_.isGuardian(_wallet, recovery.caller), "invalid recovery.caller");
-            require(recovery.caller != _recovery, "Should not repeatly recovery");
+        if (recovery_.activeAt != 0 && recovery_.activeAt > uint64(block.timestamp)) {
+            require(guardianStorage_.isGuardian(_wallet, recovery_.caller), "invalid recovery.caller");
+            require(recovery_.caller != _recovery, "Should not repeatly recovery");
         }
 
-        recovery = Recovery(uint64(block.timestamp + RECOVERY_SECURITY_PERIOD), _recovery);
+        _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.triggerRecovery.selector);
+        recovery_ = Recovery(uint64(block.timestamp + RECOVERY_SECURITY_PERIOD), _recovery, _removed);
     }
 
-    function cancelRecovery() public onlySelf {
+    function cancelRecovery(address _wallet) external onlySelf {
         //require(recovery.activeAt != 0 && recovery.caller != address(0), "not recovering");
-        require(recovery.activeAt <= uint64(block.timestamp), "not recovering");
-        delete recovery;
+        require(recovery_.activeAt <= uint64(block.timestamp), "not recovering");
+        delete recovery_;
+        _setLock(_wallet, 0, bytes4(0));
     }
 
-    function recoverSigner(address[] memory signers) public onlySelf returns (uint){
-        require(recovery.activeAt <= uint64(block.timestamp), "no active recovery");
-        for (uint i = 0; i < signers.length; i++) {
-            if (signers[i] == recovery.caller) {
-                return i;
-            }
-        }
-        delete recovery;
+    function executeRecovery(address _wallet) external onlySelf {
+        require(recovery_.activeAt <= uint64(block.timestamp), "No valid recovery found");
+        require(isGuardian(_wallet, recovery_.caller), "Invalid guardian to recovery");
+        IWallet(_wallet).replaceSigner(_wallet, recovery_.caller);
+        _setLock(_wallet, 0, bytes4(0));
     }
 
+    function addGuardian(address _wallet, address _guardian) external onlySelf onlyWhenUnlocked(_wallet) {
+        guardianStorage_.addGuardian(_wallet, _guardian);
+    }
 
+    function revokeGuardian(address _wallet, address _guardian) external onlySelf onlyWhenUnlocked(_wallet) {
+        require(isGuardian(_wallet, _guardian), "SM: must be existing guardian");
+        guardianStorage_.revokeGuardian(_wallet, _guardian);
+    }
+
+    function isGuardian(address _wallet, address _guardian) public view returns (bool _isGuardian) {
+        return guardianStorage_.isGuardian(_wallet, _guardian);
+    }
+
+    function guardianCount(address _wallet) external view returns (uint256 _count) {
+        return guardianStorage_.guardianCount(_wallet);
+    }
+
+    function getGuardians(address _wallet) external view returns (address[] memory _guardians) {
+        return guardianStorage_.getGuardians(_wallet);
+    }
+
+    // lock
      /**
      * @notice Throws if the wallet is not locked.
      */
@@ -116,4 +148,3 @@ contract SecurityModule is BaseModule {
         locks[_wallet] = Lock(SafeCast.toUint64(_releaseAfter), _locker);
     }
 }
-

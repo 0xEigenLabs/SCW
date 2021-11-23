@@ -1,14 +1,15 @@
 # Eigen Self-Sovereign Identity
 
-Eigen SSI allows you:
+Eigen NCW(Non-custodial Wallet) allows you:
 
-- [x] Use multi-signature to manager your asset, inspired by [eth-multisig-v2](https://github.com/BitGo/eth-multisig-v2);
-- [x] Recover your account by social recovery;
+- [x] Use multi-signature to manager your asset
+- [x] Recover any signer by social recovery
 - [ ] Lockable and Daily Payment Limit
-- [ ] ENS support
+- [ ] Manage your ENS and subdomain
+- [ ] Claim your secret or reputation without privacy breach
 
 Implemented by Hardhat and OpenZeppelin, aims to be:
-* Upgradeable and Modular;
+* Upgradeable and Modular
 * Security
 * Scalablity
 * Simplicity

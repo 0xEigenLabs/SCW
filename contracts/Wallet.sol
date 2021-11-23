@@ -35,7 +35,7 @@ import "./IWallet.sol";
  *
  *
  */
-contract Wallet is IWallet, Ownable, Initializable, BaseModule {
+contract Wallet is IWallet, Ownable, Initializable {
     // Events
     event Deposited(address from, uint value, bytes data);
     event SafeModeActivated(address msgSender);
@@ -47,17 +47,33 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
         uint value, // Amount of Wei sent to the address
         bytes data // Data sent when invoking the transaction
     );
+    event AuthorisedModule(address indexed module, bool value);
+    event Received(uint indexed value, address indexed sender, bytes data);
 
     // Public fields
-        // Public fields
     address[] public signers; // The addresses that can co-sign transactions on the wallet
+    uint public override modules;
     bool public safeMode = false; // When active, wallet may only send to signer addresses
+
+    function getSigners() external override view returns (address[] memory) {
+        return signers;
+    }
 
     // Internal fields
     uint constant SEQUENCE_ID_WINDOW_SIZE = 10;
     uint[10] recentSequenceIds_;
 
-    SecurityModule securityModule_;
+     // The authorised modules
+    mapping (address => bool) public override authorised;
+
+
+     /**
+     * @notice Throws if the sender is not an authorised module.
+     */
+    modifier moduleOnly {
+        require(authorised[msg.sender], "sender not authorized");
+        _;
+    }
 
     /**
      * Set up a simple multi-sig wallet by specifying the signers allowed to be used on this wallet.
@@ -67,14 +83,38 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
      *
      * @param allowedSigners An array of signers on the wallet
      */
-    constructor(address[] memory allowedSigners) public {
-        require(allowedSigners.length == 3, "Invalid guardians");
+    function initialize(address[] memory allowedSigners, address[] calldata _modules) public initializer {
+        require(allowedSigners.length == 3, "Invalid signers");
+        require(signers.length == 0 && modules == 0, "Wallet already initialised");
+        require(_modules.length > 0, "Empty modules");
+        modules = _modules.length;
         signers = allowedSigners;
+         for (uint256 i = 0; i < _modules.length; i++) {
+            require(authorised[_modules[i]] == false, "Module is already added");
+            authorised[_modules[i]] = true;
+            IModule(_modules[i]).init(address(this));
+            emit AuthorisedModule(_modules[i], true);
+        }
+        if (address(this).balance > 0) {
+            emit Received(address(this).balance, address(0), "");
+        }
     }
 
-    function initialize(address[] memory allowedSigners) public initializer {
-        require(allowedSigners.length == 3, "Invalid guardians");
-        signers = allowedSigners;
+    /**
+     */
+    function authoriseModule(address _module, bool _value) external override moduleOnly {
+        if (authorised[_module] != _value) {
+            emit AuthorisedModule(_module, _value);
+            if (_value == true) {
+                modules += 1;
+                authorised[_module] = true;
+                IModule(_module).init(address(this));
+            } else {
+                modules -= 1;
+                require(modules > 0, "BW: cannot remove last module");
+                delete authorised[_module];
+            }
+        }
     }
 
     /**
@@ -97,6 +137,17 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
         _;
     }
 
+    function replaceSigner(address _oldSigner, address _newSigner) external override moduleOnly {
+        require(isSigner(_oldSigner), "Invalid index");
+        require(!isSigner(_newSigner), "Invalid index");
+        for (uint i=0; i<signers.length; i++)
+            if (signers[i] == _oldSigner) {
+                signers[i] = _newSigner;
+                break;
+            }
+        //TODO emit event
+    }
+
     /**
     * Gets called when a transaction is received without calling a method
     */
@@ -111,7 +162,7 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
      * Create a new contract (and also address) that forwards funds to this contract
      * returns address of newly created forwarder address
      */
-    function createForwarder() public returns (address) {
+    function createForwarder() public override returns (address) {
         return address(new Forwarder());
     }
 
@@ -133,7 +184,7 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
         uint expireTime,
         uint sequenceId,
         bytes memory signature
-    ) public onlySigner {
+    ) public override onlySigner {
         // Verify the other signer
         bytes32 operationHash = keccak256(abi.encodePacked("ETHER", toAddress, value, data, expireTime, sequenceId));
         bytes memory prefix = "\x19Ethereum Signed Message:\n32";
@@ -144,50 +195,6 @@ contract Wallet is IWallet, Ownable, Initializable, BaseModule {
         (bool success, ) = toAddress.call{value:value}(data);
         require(success, "Transfer failed");
         emit Transacted(msg.sender, otherSigner, operationHash, toAddress, value, data);
-    }
-
-    /**
-    * Execute a multi-signature token transfer from this wallet using 2 signers: one from msg.sender and the other from ecrecover.
-    * Sequence IDs are numbers starting from 1. They are used to prevent replay attacks and may not be repeated.
-    *
-    * @param toAddress the destination address to send an outgoing transaction
-    * @param value the amount in tokens to be sent
-    * @param tokenContractAddress the address of the erc20 token contract
-    * @param expireTime the number of seconds since 1970 for which this transaction is valid
-    * @param sequenceId the unique sequence id obtainable from getNextSequenceId
-    * @param signature see Data Formats
-     */
-    function sendMultiSigToken(
-        address toAddress,
-        uint value,
-        address tokenContractAddress,
-        uint expireTime,
-        uint sequenceId,
-        bytes memory signature
-    ) public onlySigner {
-        // Verify the other signer
-        bytes32 operationHash = keccak256(abi.encodePacked("ERC20", toAddress, value, tokenContractAddress, expireTime, sequenceId));
-
-        verifyMultiSig(toAddress, operationHash, signature, expireTime, sequenceId);
-
-        IERC20 instance = IERC20(tokenContractAddress);
-        if (!instance.transfer(toAddress, value)) {
-            revert();
-        }
-    }
-
-    /**
-    * Execute a token flush from one of the forwarder addresses. This transfer needs only a single signature and can be done by any signer
-    *
-        * @param forwarderAddress the address of the forwarder address to flush the tokens from
-        * @param tokenContractAddress the address of the erc20 token contract
-     */
-    function flushForwarderTokens(
-        address payable forwarderAddress, 
-        address tokenContractAddress
-    ) public onlySigner {
-        Forwarder forwarder = Forwarder(forwarderAddress);
-        forwarder.flushTokens(tokenContractAddress);
     }
 
     /**
