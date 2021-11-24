@@ -92,7 +92,7 @@ contract Wallet is IWallet, Ownable, Initializable {
          for (uint256 i = 0; i < _modules.length; i++) {
             require(authorised[_modules[i]] == false, "Module is already added");
             authorised[_modules[i]] = true;
-            IModule(_modules[i]).init(address(this));
+            //IModule(_modules[i]).init(address(this));
             emit AuthorisedModule(_modules[i], true);
         }
         if (address(this).balance > 0) {
@@ -108,7 +108,7 @@ contract Wallet is IWallet, Ownable, Initializable {
             if (_value == true) {
                 modules += 1;
                 authorised[_module] = true;
-                IModule(_module).init(address(this));
+                //IModule(_module).init(address(this));
             } else {
                 modules -= 1;
                 require(modules > 0, "BW: cannot remove last module");

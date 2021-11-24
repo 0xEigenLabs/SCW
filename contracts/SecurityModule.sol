@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "./BaseModule.sol";
 import "./GuardiansStorage.sol";
 import "./IWallet.sol";
+import "./IModuleRegistry.sol";
 
 contract SecurityModule is BaseModule {
 
@@ -24,14 +25,14 @@ contract SecurityModule is BaseModule {
         bytes4 locker;
     }
 
-    // TODO
-    function init(address _wallet) external override onlySelf {
+    constructor(address _registry)  public {
+        registry = IModuleRegistry(_registry);
     }
 
     /**
      */
     function addModule(address _wallet, address _module) external override onlySelf onlyWhenUnlocked(_wallet) {
-        // TODO check if the module existing
+        require(registry.isRegisteredModule(_module), "AM: module is not registered");
         IWallet(_wallet).authoriseModule(_module, true);
     }
 
