@@ -21,8 +21,6 @@ contract GuardiansStorage {
 
     mapping (address => GuardianStorageConfig) internal configs;
 
-    // *************** External Functions ********************* //
-
     /**
      * @notice Lets an authorised module add a guardian to a wallet.
      * @param _wallet The target wallet.
