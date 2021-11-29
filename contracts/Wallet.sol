@@ -143,9 +143,9 @@ contract Wallet is IWallet, Ownable, Initializable {
         _;
     }
 
-    function replaceSigner(address _oldSigner, address _newSigner) external override moduleOnly {
-        require(isSigner(_oldSigner), "Invalid index");
-        require(!isSigner(_newSigner), "Invalid index");
+    function replaceSigner(address _newSigner, address _oldSigner) external override moduleOnly {
+        require(isSigner(_oldSigner), "W: Invalid _oldSigner");
+        require(!isSigner(_newSigner), "W: Invalid _newSigner");
         for (uint i=0; i<signers.length; i++)
             if (signers[i] == _oldSigner) {
                 signers[i] = _newSigner;

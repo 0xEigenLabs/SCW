@@ -43,7 +43,7 @@ contract SecurityModule is BaseModule {
      * @param _module attach module
      */
     function addModule(address _wallet, address _module) external override onlySelf onlyWhenUnlocked(_wallet) {
-        require(registry.isRegisteredModule(_module), "AM: module is not registered");
+        require(registry.isRegisteredModule(_module), "SM: module is not registered");
         IWallet(_wallet).authoriseModule(_module, true);
     }
 
@@ -52,7 +52,7 @@ contract SecurityModule is BaseModule {
      */
     modifier OnlyWalletOrSigner(address _wallet) {
         require(
-            IWallet(_wallet).authorised(address(this)) || IWallet(_wallet).isSigner(msg.sender),
+            _wallet == msg.sender || IWallet(_wallet).isSigner(msg.sender),
             "SM: must be signer/wallet"
         );
         _;
@@ -68,9 +68,6 @@ contract SecurityModule is BaseModule {
         return config.activeAt != 0 && config.activeAt > uint64(block.timestamp);
     }
 
-    function foo(address a, uint256 b) external OnlyWalletOrSigner(a) {
-    }
-
     // social recover
     /**
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
@@ -84,21 +81,15 @@ contract SecurityModule is BaseModule {
             "TR: should not trigger twice"
         );
         _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.triggerRecovery.selector);
-        uint res = block.timestamp + 1 hours;
-
-        //index
-        Recovery memory config = recoveries[_wallet];
-        uint index = wallets.length;
-        if (config.activeAt != 0) {
-            index = config.index;
-        }
+        uint expiry = block.timestamp + 1 hours;
 
         recoveries[_wallet] = Recovery({
-            activeAt: res,
+            activeAt: expiry,
             recovery: _recovery,
             removed: _removed,
-            index: index
+            index: wallets.length
         });
+        wallets.push(_wallet);
     }
 
     function cancelRecovery(address _wallet) external OnlyWalletOrSigner(_wallet) {
@@ -122,6 +113,7 @@ contract SecurityModule is BaseModule {
         );
         Recovery memory recovery_ = recoveries[_wallet];
         IWallet(_wallet).replaceSigner(recovery_.recovery, recovery_.removed);
+        return;
 
         address last = wallets[wallets.length - 1];
         if (last != _wallet) {
