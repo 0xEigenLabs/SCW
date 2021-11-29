@@ -42,7 +42,7 @@ contract SecurityModule is BaseModule {
      * @param _wallet attach module to new module
      * @param _module attach module
      */
-    function addModule(address _wallet, address _module) external override onlySelf onlyWhenUnlocked(_wallet) {
+    function addModule(address _wallet, address _module) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         require(registry.isRegisteredModule(_module), "SM: module is not registered");
         IWallet(_wallet).authoriseModule(_module, true);
     }
@@ -50,11 +50,16 @@ contract SecurityModule is BaseModule {
     /**
      * @notice Throws if the recovery is not a guardian for the wallet or the module itself.
      */
-    modifier OnlyWalletOrSigner(address _wallet) {
+    modifier onlyWalletOrSigner(address _wallet) {
         require(
             _wallet == msg.sender || IWallet(_wallet).isSigner(msg.sender),
             "SM: must be signer/wallet"
         );
+        _;
+    }
+
+    modifier onlyWallet(address _wallet) {
+        require(_wallet == msg.sender, "SM: must be wallet");
         _;
     }
 
@@ -73,7 +78,7 @@ contract SecurityModule is BaseModule {
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
      * @param _recovery: lost signer
      */
-    function triggerRecovery(address _wallet, address _recovery, address _removed) external OnlyWalletOrSigner(_wallet) {
+    function triggerRecovery(address _wallet, address _recovery, address _removed) external onlyWalletOrSigner(_wallet) {
         require(IWallet(_wallet).isSigner(_removed), "TR: invalid _removed signer");
         require(_recovery != address(0), "TR: Invalid new signer");
         require(
@@ -92,7 +97,7 @@ contract SecurityModule is BaseModule {
         wallets.push(_wallet);
     }
 
-    function cancelRecovery(address _wallet) external OnlyWalletOrSigner(_wallet) {
+    function cancelRecovery(address _wallet) external onlyWalletOrSigner(_wallet) {
         //require(recovery.activeAt != 0 && recovery.recovery != address(0), "not recovering");
         require(isInRecovery(_wallet), "CR: not recovering");
         address last = wallets[wallets.length - 1];
@@ -106,14 +111,13 @@ contract SecurityModule is BaseModule {
         _setLock(_wallet, 0, bytes4(0));
     }
 
-    function executeRecovery(address _wallet) external OnlyWalletOrSigner(_wallet) {
+    function executeRecovery(address _wallet) external onlyWalletOrSigner(_wallet) {
         require(
             isInRecovery(_wallet),
             "ER: No valid recovery found"
         );
         Recovery memory recovery_ = recoveries[_wallet];
         IWallet(_wallet).replaceSigner(recovery_.recovery, recovery_.removed);
-        return;
 
         address last = wallets[wallets.length - 1];
         if (last != _wallet) {
@@ -155,7 +159,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian lock a wallet. FIXME owner can also lock
      * @param _wallet The target wallet.
      */
-    function lock(address _wallet) external OnlyWalletOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
+    function lock(address _wallet) external onlyWalletOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
         _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.lock.selector);
     }
 
@@ -163,7 +167,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian unlock a locked wallet. FIXME owner can also unlock
      * @param _wallet The target wallet.
      */
-    function unlock(address _wallet) external OnlyWalletOrSigner(_wallet) onlyWhenLocked(_wallet) {
+    function unlock(address _wallet) external onlyWalletOrSigner(_wallet) onlyWhenLocked(_wallet) {
         require(locks[_wallet].locker == SecurityModule.lock.selector, "SM: cannot unlock");
         _setLock(_wallet, 0, bytes4(0));
     }
