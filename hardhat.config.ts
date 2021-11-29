@@ -26,9 +26,9 @@ module.exports = {
     target: 'ethers-v5',
     alwaysGenerateOverloads: false // should overloads with full signatures like deposit(uint256) be generated always, even if there are no overloads?
   },
-  defaultNetwork: "l1",
+  defaultNetwork: "dev",
   networks: {
-    l1: {
+    dev: {
       url: process.env['L1RPC'] || process.exit(-1),
       accounts: [
           '0xd26e62d7726062e735d6d130b3c624e97921eecc3bde9263b404121f6f0dccc4',

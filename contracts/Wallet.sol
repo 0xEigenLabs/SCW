@@ -47,6 +47,7 @@ contract Wallet is IWallet, Ownable, Initializable {
         uint value, // Amount of Wei sent to the address
         bytes data // Data sent when invoking the transaction
     );
+    event MultiSigReturns(bytes data);
     event AuthorisedModule(address indexed module, bool value);
     event Received(uint indexed value, address indexed sender, bytes data);
 
@@ -62,6 +63,7 @@ contract Wallet is IWallet, Ownable, Initializable {
     // Internal fields
     uint constant SEQUENCE_ID_WINDOW_SIZE = 10;
     uint[10] recentSequenceIds_;
+    address private deployer;
 
      // The authorised modules
     mapping (address => bool) public override authorised;
@@ -73,6 +75,10 @@ contract Wallet is IWallet, Ownable, Initializable {
     modifier moduleOnly {
         require(authorised[msg.sender], "sender not authorized");
         _;
+    }
+
+    constructor() public {
+        deployer = msg.sender;
     }
 
     /**
@@ -89,10 +95,10 @@ contract Wallet is IWallet, Ownable, Initializable {
         require(_modules.length > 0, "Empty modules");
         modules = _modules.length;
         signers = allowedSigners;
-         for (uint256 i = 0; i < _modules.length; i++) {
+        for (uint256 i = 0; i < _modules.length; i++) {
             require(authorised[_modules[i]] == false, "Module is already added");
             authorised[_modules[i]] = true;
-            //IModule(_modules[i]).init(address(this));
+            IModule(_modules[i]).init(address(this));
             emit AuthorisedModule(_modules[i], true);
         }
         if (address(this).balance > 0) {
@@ -122,7 +128,7 @@ contract Wallet is IWallet, Ownable, Initializable {
     * @param signer address to check
     * returns boolean indicating whether address is signer or not
      */
-    function isSigner(address signer) public view returns (bool) {
+    function isSigner(address signer) public view override returns (bool) {
         // Iterate through all signers on the wallet and
         for (uint i = 0; i < signers.length; i++) {
             if (signers[i] == signer) {
@@ -192,9 +198,10 @@ contract Wallet is IWallet, Ownable, Initializable {
         address otherSigner = verifyMultiSig(toAddress, prefixedHash, signature, expireTime, sequenceId);
         // Success, send the transaction
         require(address(this).balance >= value, "Balance not sufficient");
-        (bool success, ) = toAddress.call{value:value}(data);
+        (bool success, bytes memory returnData) = toAddress.call{value:value}(data);
         require(success, "Transfer failed");
         emit Transacted(msg.sender, otherSigner, operationHash, toAddress, value, data);
+        emit MultiSigReturns(returnData);
     }
 
     /**

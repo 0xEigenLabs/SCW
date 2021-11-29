@@ -21,6 +21,8 @@ interface IWallet {
      */
     function replaceSigner(address _oldSigner, address _newSigner) external;
 
+    function isSigner(address signer) external view returns (bool);
+
     /**
      * @notice Checks if a module is authorised on the wallet.
      * @param _module The module address to check.

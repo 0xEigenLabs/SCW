@@ -9,6 +9,4 @@ interface IModuleRegistry {
     function moduleName(address _module) external view returns (bytes32);
 
     function isRegisteredModule(address _module) external view returns (bool);
-
-    function isRegisteredModule(address[] calldata _modules) external view returns (bool);
 }
