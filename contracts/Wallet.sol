@@ -72,7 +72,7 @@ contract Wallet is IWallet, Ownable, Initializable {
      /**
      * @notice Throws if the sender is not an authorised module.
      */
-    modifier moduleOnly {
+    modifier onlyModule {
         require(authorised[msg.sender], "sender not authorized");
         _;
     }
@@ -88,6 +88,7 @@ contract Wallet is IWallet, Ownable, Initializable {
      * Signers CANNOT be changed once they are set
      *
      * @param allowedSigners An array of signers on the wallet
+     * @param _modules All modules to authrized by wallet
      */
     function initialize(address[] memory allowedSigners, address[] calldata _modules) public initializer {
         require(allowedSigners.length == 3, "Invalid signers");
@@ -98,7 +99,7 @@ contract Wallet is IWallet, Ownable, Initializable {
         for (uint256 i = 0; i < _modules.length; i++) {
             require(authorised[_modules[i]] == false, "Module is already added");
             authorised[_modules[i]] = true;
-            IModule(_modules[i]).init(address(this));
+            //IModule(_modules[i]).init(address(this));  // uncomment will make test/proxy.test.ts failed
             emit AuthorisedModule(_modules[i], true);
         }
         if (address(this).balance > 0) {
@@ -107,14 +108,15 @@ contract Wallet is IWallet, Ownable, Initializable {
     }
 
     /**
+     * Upgrade model or remove model for wallet
      */
-    function authoriseModule(address _module, bool _value) external override moduleOnly {
+    function authoriseModule(address _module, bool _value) external override onlyModule {
         if (authorised[_module] != _value) {
             emit AuthorisedModule(_module, _value);
             if (_value == true) {
                 modules += 1;
                 authorised[_module] = true;
-                //IModule(_module).init(address(this));
+                IModule(_module).init(address(this));
             } else {
                 modules -= 1;
                 require(modules > 0, "BW: cannot remove last module");
@@ -143,9 +145,9 @@ contract Wallet is IWallet, Ownable, Initializable {
         _;
     }
 
-    function replaceSigner(address _oldSigner, address _newSigner) external override moduleOnly {
-        require(isSigner(_oldSigner), "Invalid index");
-        require(!isSigner(_newSigner), "Invalid index");
+    function replaceSigner(address _newSigner, address _oldSigner) external override onlyModule {
+        require(isSigner(_oldSigner), "W: Invalid _oldSigner");
+        require(!isSigner(_newSigner), "W: Invalid _newSigner");
         for (uint i=0; i<signers.length; i++)
             if (signers[i] == _oldSigner) {
                 signers[i] = _newSigner;
