@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./Wallet.sol";
 
-contract WalletFactory {
+contract WalletFactory is Ownable {
     address public master;
     event NewWallet(address indexed addr);
     using Clones for address;

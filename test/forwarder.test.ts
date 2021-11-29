@@ -15,7 +15,7 @@ describe('Forwarder', () => {
   const gasPrice = 20000
   let signers
   const depositedToAccmount1 = utils.parseEther("5");
-  beforeEach(async function() {
+  before(async function() {
       accounts = await provider.listAccounts()
       signers = await ethers.getSigners()
       console.log(accounts)

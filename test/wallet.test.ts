@@ -846,7 +846,7 @@ coins.forEach(({ name: coinName, nativePrefix, tokenPrefix, walletSimpleName }) 
         expect(await provider.getBalance(wallet.address)).eq(BigNumber.from(0));
       });
 
-      it.only('Forwards value, not call data', async function () {
+      it('Forwards value, not call data', async function () {
         // When calling a nonexistent method on forwarder, transfer call value to target address and emit event on success.
         // Don't call a method on target contract.
         //

@@ -23,13 +23,13 @@ describe('Wallet Factory Test', () => {
 
   let owner
   let accounts
-  const modules = ["0xfa"]
+  const modules = [ Wallet.createRandom().address ]
   before(async function() {
     [owner] = await ethers.getSigners();
     accounts = await provider.listAccounts()
   })
   it("Should deploy master wallet contract", async function () {
-    wallet = await (await ethers.getContractFactory("Wallet")).deploy([accounts[1], accounts[2], accounts[3]], modules);
+    wallet = await (await ethers.getContractFactory("Wallet")).deploy();
     await wallet.deployed()
     walletStandaloneGas = await getGas(wallet.deployTransaction)
     expect(wallet.address).to.exist;
