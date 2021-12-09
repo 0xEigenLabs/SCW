@@ -14,6 +14,7 @@ contract Wallet is IWallet, Initializable {
     event SafeModeActivated(address msgSender);
     event AuthorisedModule(address indexed module, bool value);
     event Received(uint indexed value, address indexed sender, bytes data);
+    event Invoked(address from, address to, uint value, bytes data);
 
     // Public fields
     address public override owner;
@@ -179,6 +180,6 @@ contract Wallet is IWallet, Initializable {
                 revert(0, returndatasize())
             }
         }
-        //emit Invoked(msg.sender, _target, _value, _data);
+        emit Invoked(msg.sender, _target, _value, _data);
     }
 }

@@ -45,67 +45,12 @@ async function getWalletInstance(walletName, contract, signer) {
     return wallet
 }
 
-export const readDepositedLog = async(walletName, contract, signer, receipt) => {
-
-    let wallet = await getWalletInstance(walletName, contract, signer)
-    const iface = wallet.interface
-    const event = iface.getEvent('Deposited')
-    const eventTopic = iface.getEventTopic(event)
-    const logs = receipt.logs.filter(log => log.topics[0] === eventTopic)
-    return logs.map(
-        log => (iface.parseLog(log).args as unknown) as Deposited
-    )
-}
-
-export interface SafeModeActivated {
-    msgSender: string
-}
-
-export const readSafeModeActivatedLog = async (walletName, contract, signer, receipt) => {
-    let wallet = await getWalletInstance(walletName, contract, signer);
-    const iface = wallet.interface
-    const event = iface.getEvent("SafeModeActivated")
-    const eventTopic = iface.getEventTopic(event)
-    const logs = receipt.logs.filter(log => log.topics[0] === eventTopic)
-    return logs.map(
-        log => (iface.parseLog(log).args as unknown) as SafeModeActivated
-    )
-}
-
-export interface ForwarderDeposited {
-    from: string
-    value: BigNumber
-    data: string
-}
-
-export const readForwarderDepositedLog = async (walletName, contract, signer, receipt) => {
-    let wallet = await getWalletInstance(walletName, contract, signer);
-    const iface = wallet.interface
-    const event = iface.getEvent("ForwarderDeposited")
-    const eventTopic = iface.getEventTopic(event)
-    const logs = receipt.logs.filter(log => log.topics[0] === eventTopic)
-    return logs.map(
-        log => (iface.parseLog(log).args as unknown) as ForwarderDeposited
-    )
-}
-
 export const addHexPrefix = function(str: string): string {
     if (typeof str !== 'string') {
         return str
     }
 
     return str.startsWith("0x") ? str : '0x' + str
-}
-
-export const readTransactedLog= async(walletName, contract, signer, receipt) => {
-    let wallet = await getWalletInstance(walletName, contract, signer)
-    const iface = wallet.interface
-    const event = iface.getEvent('Transacted')
-    const eventTopic = iface.getEventTopic(event)
-    const logs = receipt.logs.filter(log => log.topics[0] === eventTopic)
-    return logs.map(
-        log => (iface.parseLog(log).args as unknown) as Transacted
-    )
 }
 
 export const signHash = async (destinationAddr, value, data, nonce) => {
@@ -139,7 +84,6 @@ export async function getSignatures(messageHash, signers, returnBadSignatures = 
     }
     return sigs;
 }
-
 
 /**
  * Returns the address a contract will have when created from the provided address
