@@ -183,7 +183,7 @@ describe("Module Registry", () => {
         await tx.wait()
     })
 
-    it.only("should change signer", async() => {
+    it("should change signer", async() => {
         let res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
