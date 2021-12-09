@@ -90,7 +90,7 @@ contract SecurityModule is BaseModule {
     }
 
     // signer managerment
-    function addSigner(address _wallet, address[] memory signer) public onlyWhenLocked(_wallet) onlyOwner(_wallet) {
+    function addSigner(address _wallet, address[] memory signer) public onlyOwner(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(signer.length > 0, "SM: invalid signers number");
 
@@ -102,7 +102,7 @@ contract SecurityModule is BaseModule {
         signerInfos[_wallet] = signerInfo;
     }
 
-    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyWhenLocked(_wallet) onlyOwner(_wallet) {
+    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyOwner(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(_newSigner != address(0) && isSigner(_wallet, _oldSigner), "SM: invalid newSigner or invalid oldSigner");
 
@@ -206,7 +206,6 @@ contract SecurityModule is BaseModule {
         require(signerInfo.exist, "SM: invalid wallet");
         uint threshold = signerInfo.threshold;
         require(count >= threshold, "SM: Not enough signatures");
-        //sequenceId += 1;
         bytes32 txHash = keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
         uint256 valid = 0;
         address lastSigner = address(0);

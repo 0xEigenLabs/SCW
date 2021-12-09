@@ -114,12 +114,13 @@ describe("Module Registry", () => {
 
     it("should revert recovery", async function() {
         let sm = SecurityModule__factory.connect(securityModule.address, user3)
-        let tx = sm.triggerRecovery(wallet1.address, user3.address, overrides)
-        await expect(tx).to.be.revertedWith("SM: must be signer/wallet")
+        try {
+            await sm.triggerRecovery(wallet1.address, user3.address, overrides)
+            throw new Error("unreachable")
+        } catch (e) {}
     })
 
-    it.only("should execute recovery", async () => {
-
+    it("should execute recovery", async () => {
         let res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
@@ -164,6 +165,37 @@ describe("Module Registry", () => {
     })
 
     it("should lock", async() => {
+        let tx
+        try {
+            tx = await securityModule.lock(wallet1.address, overrides)
+            throw new Error("unreachable")
+        } catch (e) {}
 
+        tx = await securityModule.connect(user1).lock(wallet1.address, overrides)
+        await tx.wait()
+
+        try{
+            await securityModule.connect(user1).lock(wallet1.address, overrides)
+            throw new Error("unreachable")
+        } catch(e) {}
+
+        tx = await securityModule.connect(user1).unlock(wallet1.address, overrides)
+        await tx.wait()
+    })
+
+    it.only("should change signer", async() => {
+        let res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(true)
+        res1 = await securityModule.isSigner(wallet1.address, user2.address);
+        expect(res1).eq(true)
+        let tx = await securityModule.connect(owner).replaceSigner(
+            wallet1.address, user3.address, user1.address, overrides)
+        await tx.wait()
+        res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(false)
+        res1 = await securityModule.isSigner(wallet1.address, user2.address);
+        expect(res1).eq(true)
+        res1 = await securityModule.isSigner(wallet1.address, user3.address);
+        expect(res1).eq(true)
     })
 });
