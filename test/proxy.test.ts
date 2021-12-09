@@ -22,11 +22,11 @@ describe('Wallet Factory Test', () => {
   let walletProxyGas
 
   let owner
-  let accounts
-  const modules = [ Wallet.createRandom().address ]
+  let signers
+
   before(async function() {
     [owner] = await ethers.getSigners();
-    accounts = await provider.listAccounts()
+    signers = [ Wallet.createRandom().address, Wallet.createRandom().address ]
   })
   it("Should deploy master wallet contract", async function () {
     wallet = await (await ethers.getContractFactory("Wallet")).deploy();
@@ -53,17 +53,28 @@ describe('Wallet Factory Test', () => {
     const wallet1 = Wallet__factory.connect(walletAddress, owner)
     expect(wallet1.address).to.equal(walletAddress)
 
-    let initTx = await wallet1.initialize([accounts[1], accounts[2], accounts[3]], modules, {
-        gasLimit: 210000, gasPrice: 10
+
+    let encoder = ethers.utils.defaultAbiCoder
+    let data = encoder.encode(["address[]", "uint"], [signers, 2])
+
+    let factory = await ethers.getContractFactory("ModuleRegistry")
+    let registry = await factory.deploy()
+    await registry.deployed()
+
+    factory = await ethers.getContractFactory("SecurityModule")
+    let sm = await factory.deploy(registry.address)
+    await sm.deployed()
+
+    let initTx = await wallet1.initialize([sm.address], [data], {
+        gasLimit: 8000000, gasPrice: 1
     });
     await initTx.wait()
 
-    await expect(wallet1.initialize([accounts[1], accounts[2], accounts[3]], modules)).to.be.revertedWith(
+    await expect(wallet1.initialize([sm.address], [data])).to.be.revertedWith(
       "contract is already initialized"
     )
 
-    expect(await wallet1.signers(0)).to.equal(accounts[1])
-    expect(await wallet1.signers(1)).to.equal(accounts[2])
+    expect(await wallet1.owner()).to.equal(owner.address)
   });
 
   it("Minimal Proxy deployment should cost 10x less than a standard deployment", async function () {
