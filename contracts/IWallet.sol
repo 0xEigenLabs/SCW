@@ -4,9 +4,9 @@ pragma solidity ^0.6.11;
 interface IWallet {
 
     /**
-     * @notice Return the wallet signers
+     * @notice Return the owner
      */
-    function getSigners() external view returns (address[] memory);
+    function owner() external view returns (address);
 
     /**
      * @notice Returns the number of authorised modules.
@@ -15,13 +15,10 @@ interface IWallet {
     function modules() external view returns (uint);
 
     /**
-     * @notice replace the old signer by new signer for the wallet.
-     * @param _oldSigner the old signer in the signer list
-     * @param _newSigner The new signer.
+     * @notice replace the wallet owner.
+     * @param _newOwner The new signer.
      */
-    function replaceSigner(address _oldSigner, address _newSigner) external;
-
-    function isSigner(address signer) external view returns (bool);
+    function replaceOwner(address _newOwner) external;
 
     /**
      * @notice Checks if a module is authorised on the wallet.
@@ -35,17 +32,16 @@ interface IWallet {
      * @param _module The target module.
      * @param _value Set to `true` to authorise the module.
      */
-    function authoriseModule(address _module, bool _value) external;
+    function authoriseModule(address _module, bool _value, bytes memory data) external;
 
 
     function createForwarder() external returns (address);
 
-    function sendMultiSig(
+    function invoke(
         address toAddress,
         uint value,
-        bytes memory data,
+        bytes calldata data,
         uint expireTime,
-        uint sequenceId,
-        bytes memory signature
-    ) external;
+        uint sequenceId
+    ) external returns (bytes memory);
 }

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.6.11;
+pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/utils/SafeCast.sol";
+//import "@openzeppelin/contracts/utils/SafeCast.sol";
 import "./BaseModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
@@ -10,31 +11,47 @@ contract SecurityModule is BaseModule {
 
     uint constant RECOVERY_SECURITY_PERIOD = 120;
     uint constant LOCKED_SECURITY_PERIOD = 120;
+    event MultiCalled(address to, uint value, bytes data);
 
     struct Recovery {
         uint activeAt; // timestamp for activation of escape mode, 0 otherwise
         address recovery;
-        address removed;
-        uint index;
     }
-
-    address[] wallets;
     mapping (address => Recovery) public recoveries;
-    // TODO
-    //address[] wallets;
 
-    struct Lock {
-        // the lock's release timestamp
-        uint releaseAt;
-        // the signature of the method that set the last lock
-        bytes4 locker;
+    struct SignerInfo {
+        address[] signers;
+        uint threshold;
+        bool exist;
     }
+
+    struct CallArgs {
+        address to;
+        uint value;
+        bytes data;
+        uint sequenceId;
+    }
+
+    mapping (address => SignerInfo) public signerInfos;
 
     constructor(IModuleRegistry _registry) public {
         registry = _registry;
     }
 
-    function init(address _wallet)  public override {
+    function init(address _wallet, bytes memory data)  public override onlyWallet(_wallet) {
+        require(!isRegisteredWallet(_wallet), "SM: should not add same module to wallet twice");
+        require(!signerInfos[_wallet].exist, "SM: wallet exists in signerInfos");
+
+        addWallet(_wallet);
+        // decode signer info from data
+        (address[] memory signers, uint threshold) = abi.decode(data, (address[], uint));
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        for (uint i = 0; i < signers.length; i++) {
+            signerInfo.signers.push(signers[i]);
+            require(signers[i] != IWallet(_wallet).owner(), "SM: signer cann't be owner");
+        }
+        signerInfo.threshold = threshold;
+        signerInfo.exist = true;
     }
 
     /**
@@ -42,9 +59,23 @@ contract SecurityModule is BaseModule {
      * @param _wallet attach module to new module
      * @param _module attach module
      */
-    function addModule(address _wallet, address _module) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         require(registry.isRegisteredModule(_module), "SM: module is not registered");
-        IWallet(_wallet).authoriseModule(_module, true);
+        IWallet(_wallet).authoriseModule(_module, true, data);
+    }
+
+    function isSigner(address _wallet, address _signer) public view returns (bool) {
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        return findSigner(signerInfo.signers, _signer);
+    }
+
+    function findSigner(address[] memory _signers, address _signer) public pure returns (bool) {
+        for (uint i = 0; i < _signers.length; i ++) {
+            if (_signers[i] == _signer) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -52,110 +83,91 @@ contract SecurityModule is BaseModule {
      */
     modifier onlyWalletOrSigner(address _wallet) {
         require(
-            _wallet == msg.sender || IWallet(_wallet).isSigner(msg.sender),
+            _wallet == msg.sender || isSigner(_wallet, msg.sender),
             "SM: must be signer/wallet"
         );
         _;
     }
 
-    modifier onlyWallet(address _wallet) {
-        require(_wallet == msg.sender, "SM: must be wallet");
-        _;
+    // signer managerment
+    function addSigner(address _wallet, address[] memory signer) public onlyWhenLocked(_wallet) onlyOwner(_wallet) {
+        require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
+        require(signer.length > 0, "SM: invalid signers number");
+
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        require(signerInfo.exist, "SM: wallet signer info not consistent");
+        for (uint i = 0; i < signer.length; i ++) {
+            signerInfo.signers.push(signer[i]);
+        }
+        signerInfos[_wallet] = signerInfo;
     }
 
-    //social recovery
+    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyWhenLocked(_wallet) onlyOwner(_wallet) {
+        require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
+        require(_newSigner != address(0) && isSigner(_wallet, _oldSigner), "SM: invalid newSigner or invalid oldSigner");
 
-    // Wallet specific lock storage
-    mapping (address => Lock) internal locks;
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        require(signerInfo.exist, "SM: Invalid wallet");
 
+        uint endIndex = signerInfo.signers.length - 1;
+        for (uint i = 0; i < signerInfo.signers.length - 1; i ++) {
+            if (_oldSigner == signerInfo.signers[i]) {
+                signerInfo.signers[i] = _newSigner;
+                i = endIndex;
+            }
+        }
+        // emit event
+    }
+
+    // social recovery
     function isInRecovery(address _wallet) public view returns (bool) {
         Recovery memory config = recoveries[_wallet];
         return config.activeAt != 0 && config.activeAt > uint64(block.timestamp);
     }
 
-    // social recover
     /**
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
      * @param _recovery: lost signer
      */
-    function triggerRecovery(address _wallet, address _recovery, address _removed) external onlyWalletOrSigner(_wallet) {
-        require(IWallet(_wallet).isSigner(_removed), "TR: invalid _removed signer");
-        require(_recovery != address(0), "TR: Invalid new signer");
+    function triggerRecovery(address _wallet, address _recovery) external onlyWalletOrSigner(_wallet) {
+        require(_recovery != address(0), "SM: Invalid new signer");
+        require(_recovery != IWallet(_wallet).owner(), "SM: owner can not trigger a recovery");
+        require(!isSigner(_wallet, _recovery), "SM: newOwner can't be an existing signer");
         require(
             !isInRecovery(_wallet),
-            "TR: should not trigger twice"
+            "SM: should not trigger twice"
         );
         _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.triggerRecovery.selector);
         uint expiry = block.timestamp + 1 hours;
 
         recoveries[_wallet] = Recovery({
             activeAt: expiry,
-            recovery: _recovery,
-            removed: _removed,
-            index: wallets.length
+            recovery: _recovery
         });
-        wallets.push(_wallet);
     }
 
     function cancelRecovery(address _wallet) external onlyWalletOrSigner(_wallet) {
         //require(recovery.activeAt != 0 && recovery.recovery != address(0), "not recovering");
         require(isInRecovery(_wallet), "CR: not recovering");
-        address last = wallets[wallets.length - 1];
-        if (last != _wallet) {
-            uint targetIndex = recoveries[_wallet].index;
-            wallets[targetIndex] = last;
-            recoveries[last].index = targetIndex;
-        }
-        wallets.pop();
         delete recoveries[_wallet];
         _setLock(_wallet, 0, bytes4(0));
     }
 
-    function executeRecovery(address _wallet) external onlyWalletOrSigner(_wallet) {
+    function executeRecovery(address _wallet) external onlyWallet(_wallet) {
         require(
             isInRecovery(_wallet),
-            "ER: No valid recovery found"
+            "SM: No valid recovery found"
         );
         Recovery memory recovery_ = recoveries[_wallet];
-        IWallet(_wallet).replaceSigner(recovery_.recovery, recovery_.removed);
+        require (msg.sender != recovery_.recovery, "SM: recovery executor mustn't be caller");
 
-        address last = wallets[wallets.length - 1];
-        if (last != _wallet) {
-            uint targetIndex = recoveries[_wallet].index;
-            wallets[targetIndex] = last;
-            recoveries[last].index = targetIndex;
-        }
-        wallets.pop();
+        IWallet(_wallet).replaceOwner(recovery_.recovery);
+
         delete recoveries[_wallet];
         _setLock(_wallet, 0, bytes4(0));
     }
 
-    // lock
-     /**
-     * @notice Throws if the wallet is not locked.
-     */
-    modifier onlyWhenLocked(address _wallet) {
-        require(_isLocked(_wallet), "BM: wallet must be locked");
-        _;
-    }
-
     /**
-     * @notice Throws if the wallet is locked.
-     */
-    modifier onlyWhenUnlocked(address _wallet) {
-        require(!_isLocked(_wallet), "BM: wallet locked");
-        _;
-    }
-
-    /**
-     * @notice Helper method to check if a wallet is locked.
-     * @param _wallet The target wallet.
-     */
-    function _isLocked(address _wallet) internal view returns (bool) {
-        return locks[_wallet].releaseAt > block.timestamp;
-    }
-
-     /**
      * @notice Lets a guardian lock a wallet. FIXME owner can also lock
      * @param _wallet The target wallet.
      */
@@ -173,6 +185,71 @@ contract SecurityModule is BaseModule {
     }
 
     function _setLock(address _wallet, uint256 _releaseAfter, bytes4 _locker) internal {
-        locks[_wallet] = Lock(_releaseAfter, _locker);
+        locks[_wallet] = Lock(uint64(_releaseAfter), _locker);
+    }
+
+    /**
+     * @notice Only entry point of the multisig. The method will execute any transaction provided that it
+     * receieved enough signatures from the wallet owners.
+     * @param _wallet The destination address for the transaction to execute.
+     * @param _args The value parameter for the transaction to execute.
+     * @param _signatures Concatenated signatures ordered based on increasing signer's address.
+     */
+    function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyWalletOrSigner(_wallet) {
+        address to = _args.to;
+        uint value = _args.value;
+        bytes memory data = _args.data;
+        uint sequenceId = _args.sequenceId;
+
+        uint256 count = _signatures.length / 65;
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        require(signerInfo.exist, "SM: invalid wallet");
+        uint threshold = signerInfo.threshold;
+        require(count >= threshold, "SM: Not enough signatures");
+        //sequenceId += 1;
+        bytes32 txHash = keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
+        uint256 valid = 0;
+        address lastSigner = address(0);
+        for (uint256 i = 0; i < count; i++) {
+            address recovered = recoverSigner(txHash, _signatures, i);
+            require(recovered > lastSigner, "SM: Badly ordered signatures"); // make sure signers are different
+            lastSigner = recovered;
+            if (findSigner(signerInfo.signers, recovered)) {
+                valid += 1;
+                if (valid >= threshold) {
+                    IWallet(_wallet).invoke(to, value, data, block.timestamp, sequenceId);
+                    emit MultiCalled(to, value, data);
+                    return;
+                }
+            }
+        }
+        // If not enough signatures for threshold, then the transaction is not executed
+        revert("SM: Not enough valid signatures");
+    }
+
+    function recoverSigner(bytes32 txHash, bytes memory _signatures, uint256 _i) internal pure returns (address){
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        (v,r,s) = splitSignature(_signatures, _i);
+        return ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",txHash)), v, r, s);
+    }
+
+    /**
+     * @notice Parses the signatures and extract (r, s, v) for a signature at a given index.
+     * A signature is {bytes32 r}{bytes32 s}{uint8 v} in compact form where the signatures are concatenated.
+     * @param _signatures concatenated signatures
+     * @param _index which signature to read (0, 1, 2, ...)
+     */
+    function splitSignature(bytes memory _signatures, uint256 _index) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
+        // we jump 32 (0x20) as the first slot of bytes contains the length
+        // we jump 65 (0x41) per signature
+        // for v we load 32 bytes ending with v (the first 31 come from s) tehn apply a mask
+        assembly {
+            r := mload(add(_signatures, add(0x20,mul(0x41,_index))))
+            s := mload(add(_signatures, add(0x40,mul(0x41,_index))))
+            v := and(mload(add(_signatures, add(0x41,mul(0x41,_index)))), 0xff)
+        }
+        require(v == 27 || v == 28, "SM: Invalid v");
     }
 }
