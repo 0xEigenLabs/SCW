@@ -30,6 +30,7 @@ contract SecurityModule is BaseModule {
         uint value;
         bytes data;
         uint sequenceId;
+        uint expireTime;
     }
 
     mapping (address => SignerInfo) public signerInfos;
@@ -196,17 +197,12 @@ contract SecurityModule is BaseModule {
      * @param _signatures Concatenated signatures ordered based on increasing signer's address.
      */
     function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyWalletOrSigner(_wallet) {
-        address to = _args.to;
-        uint value = _args.value;
-        bytes memory data = _args.data;
-        uint sequenceId = _args.sequenceId;
-
         uint256 count = _signatures.length / 65;
         SignerInfo storage signerInfo = signerInfos[_wallet];
         require(signerInfo.exist, "SM: invalid wallet");
         uint threshold = signerInfo.threshold;
         require(count >= threshold, "SM: Not enough signatures");
-        bytes32 txHash = keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
+        bytes32 txHash = getHash(_wallet, _args);
         uint256 valid = 0;
         address lastSigner = address(0);
         for (uint256 i = 0; i < count; i++) {
@@ -216,14 +212,34 @@ contract SecurityModule is BaseModule {
             if (findSigner(signerInfo.signers, recovered)) {
                 valid += 1;
                 if (valid >= threshold) {
-                    IWallet(_wallet).invoke(to, value, data, block.timestamp, sequenceId);
-                    emit MultiCalled(to, value, data);
+                    invoke(_wallet, _args);
                     return;
                 }
             }
         }
         // If not enough signatures for threshold, then the transaction is not executed
         revert("SM: Not enough valid signatures");
+    }
+
+    function getHash(address _wallet, CallArgs memory _args) internal returns(bytes32) {
+        address to = _args.to;
+        uint value = _args.value;
+        bytes memory data = _args.data;
+        uint sequenceId = _args.sequenceId;
+        uint expireTime = _args.expireTime;
+
+        return keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
+    }
+
+    function invoke(address _wallet, CallArgs memory _args) internal {
+        address to = _args.to;
+        uint value = _args.value;
+        bytes memory data = _args.data;
+        uint sequenceId = _args.sequenceId;
+        uint expireTime = _args.expireTime;
+
+        IWallet(_wallet).invoke(to, value, data, expireTime, sequenceId);
+        emit MultiCalled(to, value, data);
     }
 
     function recoverSigner(bytes32 txHash, bytes memory _signatures, uint256 _i) internal pure returns (address){
