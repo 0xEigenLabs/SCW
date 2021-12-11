@@ -154,7 +154,7 @@ describe("Module Registry", () => {
 
         let res = await securityModule.connect(user1).multicall(
             wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId],
+            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
             signatures,
             overrides
         );

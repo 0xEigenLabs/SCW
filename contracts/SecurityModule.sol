@@ -82,9 +82,9 @@ contract SecurityModule is BaseModule {
     /**
      * @notice Throws if the recovery is not a guardian for the wallet or the module itself.
      */
-    modifier onlyWalletOrSigner(address _wallet) {
+    modifier onlyOwnerOrSigner(address _wallet) {
         require(
-            _wallet == msg.sender || isSigner(_wallet, msg.sender),
+            IWallet(_wallet).owner() == msg.sender || isSigner(_wallet, msg.sender),
             "SM: must be signer/wallet"
         );
         _;
@@ -130,7 +130,7 @@ contract SecurityModule is BaseModule {
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
      * @param _recovery: lost signer
      */
-    function triggerRecovery(address _wallet, address _recovery) external onlyWalletOrSigner(_wallet) {
+    function triggerRecovery(address _wallet, address _recovery) external onlyWallet(_wallet) {
         require(_recovery != address(0), "SM: Invalid new signer");
         require(_recovery != IWallet(_wallet).owner(), "SM: owner can not trigger a recovery");
         require(!isSigner(_wallet, _recovery), "SM: newOwner can't be an existing signer");
@@ -147,9 +147,9 @@ contract SecurityModule is BaseModule {
         });
     }
 
-    function cancelRecovery(address _wallet) external onlyWalletOrSigner(_wallet) {
+    function cancelRecovery(address _wallet) external onlyWallet(_wallet) {
         //require(recovery.activeAt != 0 && recovery.recovery != address(0), "not recovering");
-        require(isInRecovery(_wallet), "CR: not recovering");
+        require(isInRecovery(_wallet), "SM: not recovering");
         delete recoveries[_wallet];
         _setLock(_wallet, 0, bytes4(0));
     }
@@ -172,7 +172,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian lock a wallet. FIXME owner can also lock
      * @param _wallet The target wallet.
      */
-    function lock(address _wallet) external onlyWalletOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
+    function lock(address _wallet) external onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.lock.selector);
     }
 
@@ -180,7 +180,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian unlock a locked wallet. FIXME owner can also unlock
      * @param _wallet The target wallet.
      */
-    function unlock(address _wallet) external onlyWalletOrSigner(_wallet) onlyWhenLocked(_wallet) {
+    function unlock(address _wallet) external onlyWallet(_wallet) onlyWhenLocked(_wallet) {
         require(locks[_wallet].locker == SecurityModule.lock.selector, "SM: cannot unlock");
         _setLock(_wallet, 0, bytes4(0));
     }
@@ -196,11 +196,11 @@ contract SecurityModule is BaseModule {
      * @param _args The value parameter for the transaction to execute.
      * @param _signatures Concatenated signatures ordered based on increasing signer's address.
      */
-    function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyWalletOrSigner(_wallet) {
-        uint256 count = _signatures.length / 65;
+    function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyOwnerOrSigner(_wallet) {
         SignerInfo storage signerInfo = signerInfos[_wallet];
         require(signerInfo.exist, "SM: invalid wallet");
         uint threshold = signerInfo.threshold;
+        uint256 count = _signatures.length / 65;
         require(count >= threshold, "SM: Not enough signatures");
         bytes32 txHash = getHash(_wallet, _args);
         uint256 valid = 0;
@@ -212,7 +212,7 @@ contract SecurityModule is BaseModule {
             if (findSigner(signerInfo.signers, recovered)) {
                 valid += 1;
                 if (valid >= threshold) {
-                    invoke(_wallet, _args);
+                    execute(_wallet, _args);
                     return;
                 }
             }
@@ -226,12 +226,12 @@ contract SecurityModule is BaseModule {
         uint value = _args.value;
         bytes memory data = _args.data;
         uint sequenceId = _args.sequenceId;
-        uint expireTime = _args.expireTime;
 
+        //TODO encode expire time
         return keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
     }
 
-    function invoke(address _wallet, CallArgs memory _args) internal {
+    function execute(address _wallet, CallArgs memory _args) internal {
         address to = _args.to;
         uint value = _args.value;
         bytes memory data = _args.data;

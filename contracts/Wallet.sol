@@ -162,16 +162,17 @@ contract Wallet is IWallet, Initializable {
      * @param _target The address for the transaction.
      * @param _value The value of the transaction.
      * @param _data The data of the transaction.
-     * @param expireTime The data of the transaction.
-     * @param sequenceId The data of the transaction.
+     * @param _expireTime The data of the transaction.
+     * @param _sequenceId The data of the transaction.
+     * @param _sender origin sender
      */
     function invoke(address _target, uint _value, bytes calldata _data,
-                    uint expireTime, uint sequenceId
-                   ) external override onlyModuleOrOwner returns (bytes memory _result) {
+                    uint _expireTime, uint _sequenceId
+                   ) external override onlyModule returns (bytes memory _result) {
         bool success;
-        require(expireTime >= block.timestamp, "Transaction expired");
+        require(_expireTime >= block.timestamp, "Transaction expired");
 
-        tryInsertSequenceId(sequenceId);
+        tryInsertSequenceId(_sequenceId);
         (success, _result) = _target.call{value: _value}(_data);
         if (!success) {
             // solhint-disable-next-line no-inline-assembly
