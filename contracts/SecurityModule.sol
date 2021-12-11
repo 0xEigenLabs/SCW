@@ -202,7 +202,7 @@ contract SecurityModule is BaseModule {
         uint threshold = signerInfo.threshold;
         uint256 count = _signatures.length / 65;
         require(count >= threshold, "SM: Not enough signatures");
-        bytes32 txHash = getHash(_wallet, _args);
+        bytes32 txHash = getHash(_args);
         uint256 valid = 0;
         address lastSigner = address(0);
         for (uint256 i = 0; i < count; i++) {
@@ -221,7 +221,7 @@ contract SecurityModule is BaseModule {
         revert("SM: Not enough valid signatures");
     }
 
-    function getHash(address _wallet, CallArgs memory _args) internal returns(bytes32) {
+    function getHash(CallArgs memory _args) internal pure returns(bytes32) {
         address to = _args.to;
         uint value = _args.value;
         bytes memory data = _args.data;

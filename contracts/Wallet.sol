@@ -164,7 +164,6 @@ contract Wallet is IWallet, Initializable {
      * @param _data The data of the transaction.
      * @param _expireTime The data of the transaction.
      * @param _sequenceId The data of the transaction.
-     * @param _sender origin sender
      */
     function invoke(address _target, uint _value, bytes calldata _data,
                     uint _expireTime, uint _sequenceId
