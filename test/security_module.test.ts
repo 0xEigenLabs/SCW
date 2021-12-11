@@ -97,6 +97,8 @@ describe("Module Registry", () => {
 
     it("should trigger recovery", async function() {
        let sm = SecurityModule__factory.connect(securityModule.address, user1)
+
+       // TODO
        let tx = await sm.triggerRecovery(wallet1.address, user3.address, overrides);
        await tx.wait()
 

@@ -172,7 +172,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian lock a wallet. FIXME owner can also lock
      * @param _wallet The target wallet.
      */
-    function lock(address _wallet) external onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+    function lock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
         _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.lock.selector);
     }
 
@@ -180,7 +180,7 @@ contract SecurityModule is BaseModule {
      * @notice Lets a guardian unlock a locked wallet. FIXME owner can also unlock
      * @param _wallet The target wallet.
      */
-    function unlock(address _wallet) external onlyWallet(_wallet) onlyWhenLocked(_wallet) {
+    function unlock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenLocked(_wallet) {
         require(locks[_wallet].locker == SecurityModule.lock.selector, "SM: cannot unlock");
         _setLock(_wallet, 0, bytes4(0));
     }
