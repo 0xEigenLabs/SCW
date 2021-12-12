@@ -62,7 +62,7 @@ abstract contract BaseModule is IModule {
         _;
     }
 
-    function isRegisteredWallet(address _wallet) internal returns (bool){
+    function isRegisteredWallet(address _wallet) internal view returns (bool){
         for (uint i = 0; i < wallets.length; i ++) {
             if ( wallets[i] == _wallet ) {
                 return true;
