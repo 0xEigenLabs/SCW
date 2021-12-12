@@ -21,7 +21,6 @@ contract SecurityModule is BaseModule {
 
     struct SignerInfo {
         address[] signers;
-        uint threshold;
         bool exist;
     }
 
@@ -45,13 +44,12 @@ contract SecurityModule is BaseModule {
 
         addWallet(_wallet);
         // decode signer info from data
-        (address[] memory signers, uint threshold) = abi.decode(data, (address[], uint));
+        (address[] memory signers) = abi.decode(data, (address[]));
         SignerInfo storage signerInfo = signerInfos[_wallet];
         for (uint i = 0; i < signers.length; i++) {
             signerInfo.signers.push(signers[i]);
             require(signers[i] != IWallet(_wallet).owner(), "SM: signer cann't be owner");
         }
-        signerInfo.threshold = threshold;
         signerInfo.exist = true;
     }
 
@@ -160,7 +158,6 @@ contract SecurityModule is BaseModule {
             "SM: No valid recovery found"
         );
         Recovery memory recovery_ = recoveries[_wallet];
-        require (msg.sender != recovery_.recovery, "SM: recovery executor mustn't be caller");
 
         IWallet(_wallet).replaceOwner(recovery_.recovery);
 
@@ -199,7 +196,7 @@ contract SecurityModule is BaseModule {
     function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyOwnerOrSigner(_wallet) {
         SignerInfo storage signerInfo = signerInfos[_wallet];
         require(signerInfo.exist, "SM: invalid wallet");
-        uint threshold = signerInfo.threshold;
+        uint threshold = (signerInfo.signers.length + 1) / 2;
         uint256 count = _signatures.length / 65;
         require(count >= threshold, "SM: Not enough signatures");
         bytes32 txHash = getHash(_args);

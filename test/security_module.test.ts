@@ -27,6 +27,11 @@ let user3
 let sequenceId
 const expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
+const SMABI = [
+    "function executeRecovery(address)",
+    "function cancelRecovery(address)",
+    "function triggerRecovery(address, address)"
+]
 
 describe("Module Registry", () => {
     before(async () => {
@@ -78,7 +83,7 @@ describe("Module Registry", () => {
 
         let modules = [ securityModule.address ]
         let encoder = ethers.utils.defaultAbiCoder
-        let data = [encoder.encode(["address[]", "uint"], [[user1.address, user2.address], 2])]
+        let data = [encoder.encode(["address[]"], [[user1.address, user2.address]])]
         let initTx = await wallet1.initialize(modules, data);
         await initTx.wait()
     })
@@ -90,34 +95,63 @@ describe("Module Registry", () => {
         // deposit to wallet
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
-        console.log("before done")
         sequenceId = await wallet1.getNextSequenceId()
-        console.log("sequenceId", sequenceId)
+        console.log("before done")
     })
 
     it("should trigger recovery", async function() {
-       let sm = SecurityModule__factory.connect(securityModule.address, user1)
+        let sm = SecurityModule__factory.connect(securityModule.address, user1)
 
-       // TODO
-       let tx = await sm.triggerRecovery(wallet1.address, user3.address, overrides);
-       await tx.wait()
+        let amount = 0
+        let iface = new ethers.utils.Interface(SMABI)
+        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+        let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
-       let res = await sm.isInRecovery(wallet1.address)
-       expect(res).eq(true)
+        let res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            signatures,
+            overrides
+        );
+        await res.wait()
 
-       tx = await sm.cancelRecovery(wallet1.address)
-       await tx.wait()
+        res = await sm.isInRecovery(wallet1.address)
+        expect(res).eq(true)
+        sequenceId = await wallet1.getNextSequenceId()
 
-       res = await sm.isInRecovery(wallet1.address)
-       expect(res).eq(false)
+        iface = new ethers.utils.Interface(SMABI)
+        replaceOwnerData = iface.encodeFunctionData("cancelRecovery", [wallet1.address])
+        hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
-       // should revert
+        res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            signatures,
+            overrides
+        );
+        await res.wait()
+
+        res = await sm.isInRecovery(wallet1.address)
+        expect(res).eq(false)
     });
 
     it("should revert recovery", async function() {
         let sm = SecurityModule__factory.connect(securityModule.address, user3)
         try {
-            await sm.triggerRecovery(wallet1.address, user3.address, overrides)
+            let amount = 0
+            let iface = new ethers.utils.Interface(SMABI)
+            let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+            let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+            let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+            let res = await securityModule.connect(user3).multicall(
+                wallet1.address,
+                [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+                signatures,
+                overrides
+            );
             throw new Error("unreachable")
         } catch (e) {}
     })
@@ -135,26 +169,27 @@ describe("Module Registry", () => {
         expect(res1).eq(owner.address)
 
         let amount = 0
-        let sm = SecurityModule__factory.connect(securityModule.address, user1)
-        let tx = await sm.triggerRecovery(wallet1.address, user3.address, overrides);
-        await tx.wait()
-
-        let SMABI = [
-            "function executeRecovery(address)"
-        ]
         let iface = new ethers.utils.Interface(SMABI)
-        //make replaceOwner caller
-        let replaceOwnerData = iface.encodeFunctionData("executeRecovery", [wallet1.address])
-        console.log("replaceOwnerData", replaceOwnerData)
-
-        //make signature
+        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
         let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
-        let signatures = await helpers.getSignatures(
-            ethers.utils.arrayify(hash), [user1, user2])
-        console.log(signatures.length, signatures)
+        let res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            signatures,
+            overrides
+        );
+        await res.wait()
 
-        let res = await securityModule.connect(user1).multicall(
+
+        sequenceId = await wallet1.getNextSequenceId()
+        iface = new ethers.utils.Interface(SMABI)
+        replaceOwnerData = iface.encodeFunctionData("executeRecovery", [wallet1.address])
+        hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        res = await securityModule.connect(user1).multicall(
             wallet1.address,
             [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
             signatures,
@@ -168,13 +203,13 @@ describe("Module Registry", () => {
 
     it("should lock", async() => {
         let tx
+        tx = await securityModule.connect(user1).lock(wallet1.address, overrides)
+        await tx.wait()
+
         try {
             tx = await securityModule.lock(wallet1.address, overrides)
             throw new Error("unreachable")
         } catch (e) {}
-
-        tx = await securityModule.connect(user1).lock(wallet1.address, overrides)
-        await tx.wait()
 
         try{
             await securityModule.connect(user1).lock(wallet1.address, overrides)
@@ -186,18 +221,19 @@ describe("Module Registry", () => {
     })
 
     it("should change signer", async() => {
+        // owner has been changed to user3
         let res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(true)
-        let tx = await securityModule.connect(owner).replaceSigner(
-            wallet1.address, user3.address, user1.address, overrides)
+        let tx = await securityModule.connect(user3).replaceSigner(
+            wallet1.address, owner.address, user1.address, overrides)
         await tx.wait()
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(true)
-        res1 = await securityModule.isSigner(wallet1.address, user3.address);
+        res1 = await securityModule.isSigner(wallet1.address, owner.address);
         expect(res1).eq(true)
     })
 });
