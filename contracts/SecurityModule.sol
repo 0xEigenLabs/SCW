@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.6.11;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-//import "@openzeppelin/contracts/utils/SafeCast.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./BaseModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
-contract SecurityModule is BaseModule {
+contract SecurityModule is BaseModule, Initializable {
 
-    uint constant RECOVERY_SECURITY_PERIOD = 120;
-    uint constant LOCKED_SECURITY_PERIOD = 120;
+    uint public locked_security_period;
+    uint public recovery_security_period;
     event MultiCalled(address to, uint value, bytes data);
 
     struct Recovery {
@@ -33,9 +33,12 @@ contract SecurityModule is BaseModule {
     }
 
     mapping (address => SignerInfo) public signerInfos;
+    constructor() public {}
 
-    constructor(IModuleRegistry _registry) public {
+    function initialize(IModuleRegistry _registry, uint _locked_security_period, uint _recovery_security_period) public initializer {
         registry = _registry;
+        locked_security_period = _locked_security_period;
+        recovery_security_period = _recovery_security_period;
     }
 
     function init(address _wallet, bytes memory data)  public override onlyWallet(_wallet) {
@@ -136,8 +139,8 @@ contract SecurityModule is BaseModule {
             !isInRecovery(_wallet),
             "SM: should not trigger twice"
         );
-        _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.triggerRecovery.selector);
-        uint expiry = block.timestamp + 1 hours;
+        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.triggerRecovery.selector);
+        uint expiry = block.timestamp + recovery_security_period;
 
         recoveries[_wallet] = Recovery({
             activeAt: expiry,
@@ -170,7 +173,7 @@ contract SecurityModule is BaseModule {
      * @param _wallet The target wallet.
      */
     function lock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
-        _setLock(_wallet, block.timestamp + LOCKED_SECURITY_PERIOD, SecurityModule.lock.selector);
+        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.lock.selector);
     }
 
     /**

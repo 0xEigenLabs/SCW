@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.6.11;
+pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
  * Contract that will forward any incoming Ether to the creator of the contract
@@ -13,7 +13,7 @@ contract Forwarder {
    * Create the contract, and sets the destination address to that of the creator
    */
   constructor() public {
-    parentAddress = msg.sender;
+    parentAddress = payable(msg.sender);
   }
 
   /**

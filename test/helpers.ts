@@ -3,8 +3,6 @@ import { BigNumber, utils } from "ethers"
 
 import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
-import { Wallet } from "../typechain/Wallet"
-import { Forwarder } from "../typechain/Forwarder"
 import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
 
 const provider = ethers.provider;
