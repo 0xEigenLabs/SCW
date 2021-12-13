@@ -20,6 +20,7 @@ describe('Wallet Factory Test', () => {
   let proxy
   let walletStandaloneGas
   let walletProxyGas
+  let sm
 
   let owner
   let signers
@@ -52,23 +53,26 @@ describe('Wallet Factory Test', () => {
 
     const wallet1 = Wallet__factory.connect(walletAddress, owner)
     expect(wallet1.address).to.equal(walletAddress)
+    console.log("wallet 1 address", wallet1.address)
 
 
     let encoder = ethers.utils.defaultAbiCoder
-    let data = encoder.encode(["address[]", "uint"], [signers, 2])
+    let data = encoder.encode(["address[]"], [signers])
 
     let factory = await ethers.getContractFactory("ModuleRegistry")
     let registry = await factory.deploy()
     await registry.deployed()
 
     factory = await ethers.getContractFactory("SecurityModule")
-    let sm = await factory.deploy(registry.address)
+    sm = await factory.deploy()
     await sm.deployed()
+    await sm.initialize(registry.address, 120, 120)
 
     let initTx = await wallet1.initialize([sm.address], [data], {
         gasLimit: 8000000, gasPrice: 1
     });
     await initTx.wait()
+    expect(await wallet1.authorised(sm.address)).to.equal(true)
 
     await expect(wallet1.initialize([sm.address], [data])).to.be.revertedWith(
       "contract is already initialized"

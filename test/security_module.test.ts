@@ -39,8 +39,10 @@ describe("Module Registry", () => {
         moduleRegistry = await factory.deploy()
         await moduleRegistry.deployed()
         factory = await ethers.getContractFactory("SecurityModule");
-        securityModule = await factory.deploy(moduleRegistry.address)
+        securityModule = await factory.deploy()
         await securityModule.deployed()
+
+        await securityModule.initialize(moduleRegistry.address, 120, 120)
         console.log("secure module", securityModule.address)
 
         //register the module

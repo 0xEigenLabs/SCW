@@ -1,5 +1,5 @@
 {
-  "name": "multi-sig-wallet",
+  "name": "NCW",
   "version": "1.0.0",
   "description": "EigenSecret multi-sig contract wallet",
   "main": "index.js",
