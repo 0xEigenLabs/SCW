@@ -20,7 +20,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 });
 
 module.exports = {
-  solidity: '0.6.11',
+  solidity: '0.8.3',
   typechain: {
     outDir: 'typechain',
     target: 'ethers-v5',

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.6.11;
+pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-//import "@openzeppelin/contracts/utils/SafeCast.sol";
-import "@openzeppelin/contracts/proxy/Initializable.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./BaseModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.6.11;
+pragma solidity ^0.8.0;
 
 interface IModuleRegistry {
     function registerModule(address _module, bytes32 _name) external;
