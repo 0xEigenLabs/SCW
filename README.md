@@ -16,7 +16,7 @@ Implemented by Hardhat and OpenZeppelin, aims to be:
 
 # Test
 
-
+setup .env and build.
 
 ```
 yarn build
