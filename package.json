@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rm -rf build dist typechain cache artifacts",
     "build": "hardhat compile",
-    "test": "yarn build && npx hardhat test --network dev"
+    "test": "yarn build && npx hardhat test"
   },
   "author": "Eigen Lab",
   "license": "Apache-2.0",

@@ -29,11 +29,14 @@ module.exports = {
   mocha: {
     timeout: 10000000,
   },
-  defaultNetwork: "dev",
+  //defaultNetwork: "dev",
   networks: {
+
     dev: {
       url: process.env['RPC'] || process.exit(-1),
-      accounts: [process.env.DEVNET_PRIVKEY]
+      accounts: [process.env.DEVNET_PRIVKEY],
+      gas: 2100000,
+      gasPrice: 8000000
     }
   },
 }

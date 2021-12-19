@@ -35,7 +35,11 @@ contract SecurityModule is BaseModule, Initializable {
     mapping (address => SignerInfo) public signerInfos;
     constructor() public {}
 
-    function initialize(IModuleRegistry _registry, uint _locked_security_period, uint _recovery_security_period) public initializer {
+    function initialize(
+        IModuleRegistry _registry,
+        uint _locked_security_period,
+        uint _recovery_security_period
+    ) public initializer {
         registry = _registry;
         locked_security_period = _locked_security_period;
         recovery_security_period = _recovery_security_period;
@@ -91,8 +95,8 @@ contract SecurityModule is BaseModule, Initializable {
         _;
     }
 
-    // signer managerment
-    function addSigner(address _wallet, address[] memory signer) public onlyOwner(_wallet) {
+    // signer managerment， TODO
+    function addSigner(address _wallet, address[] memory signer) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(signer.length > 0, "SM: invalid signers number");
 
@@ -102,6 +106,7 @@ contract SecurityModule is BaseModule, Initializable {
             signerInfo.signers.push(signer[i]);
         }
         signerInfos[_wallet] = signerInfo;
+        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.addSigner.selector);
     }
 
     function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyOwner(_wallet) {
@@ -118,6 +123,25 @@ contract SecurityModule is BaseModule, Initializable {
                 i = endIndex;
             }
         }
+        // emit event
+    }
+
+    function removeSigner(address _wallet, address _oldSigner) public onlyOwner(_wallet) {
+        require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
+        require(isSigner(_wallet, _oldSigner), "SM: invalid oldSigner");
+
+        SignerInfo storage signerInfo = signerInfos[_wallet];
+        require(signerInfo.exist, "SM: Invalid wallet");
+
+        uint endIndex = signerInfo.signers.length - 1;
+        address lastSigner = signerInfo.signers[endIndex];
+        for (uint i = 0; i < signerInfo.signers.length - 1; i ++) {
+            if (_oldSigner == signerInfo.signers[i]) {
+                signerInfo.signers[i] = lastSigner;
+                i = endIndex;
+            }
+        }
+        signerInfo.signers.pop();
         // emit event
     }
 

@@ -16,9 +16,9 @@ Implemented by Hardhat and OpenZeppelin, aims to be:
 
 # Test
 
-setup .env and build.
+setup the rpc and account in .env or use `npx hardhat node`.
 
 ```
 yarn build
-yarn test
+yarn test --network localhost
 ```

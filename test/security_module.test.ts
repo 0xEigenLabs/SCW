@@ -98,7 +98,6 @@ describe("Module Registry", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
-        console.log("before done")
     })
 
     it("should trigger recovery", async function() {
@@ -235,6 +234,21 @@ describe("Module Registry", () => {
         expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(true)
+        res1 = await securityModule.isSigner(wallet1.address, owner.address);
+        expect(res1).eq(true)
+    })
+
+    it("should remove signer", async() => {
+        // owner has been changed to user3
+        let res1 = await securityModule.isSigner(wallet1.address, user2.address);
+        expect(res1).eq(true)
+        let tx = await securityModule.connect(user3).removeSigner(
+            wallet1.address, user2.address, overrides)
+        await tx.wait()
+        res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(false)
+        res1 = await securityModule.isSigner(wallet1.address, user2.address);
+        expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, owner.address);
         expect(res1).eq(true)
     })
