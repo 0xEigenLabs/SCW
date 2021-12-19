@@ -252,7 +252,7 @@ describe("Module Registry", () => {
     })
 
     it("should add signer", async() => {
-        // add user2 to signer
+        // add user1 to signer
         let res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
         let tx = await securityModule.connect(user3).addSigner(
