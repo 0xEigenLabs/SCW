@@ -12,7 +12,6 @@ import { SecurityModule__factory } from "../typechain/factories/SecurityModule__
 import { Wallet__factory } from "../typechain/factories/Wallet__factory" 
 
 const helpers = require("./helpers");
-const overrides = { gasLimit: 8000000, gasPrice: 10000 }
 
 const provider = waffle.provider
 
@@ -25,13 +24,17 @@ let user1
 let user2
 let user3
 let sequenceId
-const expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
     "function executeRecovery(address)",
     "function cancelRecovery(address)",
     "function triggerRecovery(address, address)"
 ]
+
+let lock_period = 5 //s
+let recovery_period = 120 //s
+let expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Module Registry", () => {
     before(async () => {
@@ -42,7 +45,7 @@ describe("Module Registry", () => {
         securityModule = await factory.deploy()
         await securityModule.deployed()
 
-        await securityModule.initialize(moduleRegistry.address, 120, 120)
+        await securityModule.initialize(moduleRegistry.address, lock_period, recovery_period)
         console.log("secure module", securityModule.address)
 
         //register the module
@@ -98,6 +101,7 @@ describe("Module Registry", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
+        expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
     })
 
     it("should trigger recovery", async function() {
@@ -112,8 +116,7 @@ describe("Module Registry", () => {
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
             [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-            signatures,
-            overrides
+            signatures
         );
         await res.wait()
 
@@ -129,8 +132,7 @@ describe("Module Registry", () => {
         res = await securityModule.connect(owner).multicall(
             wallet1.address,
             [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-            signatures,
-            overrides
+            signatures
         );
         await res.wait()
 
@@ -150,8 +152,7 @@ describe("Module Registry", () => {
             let res = await securityModule.connect(user3).multicall(
                 wallet1.address,
                 [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-                signatures,
-                overrides
+                signatures
             );
             throw new Error("unreachable")
         } catch (e) {}
@@ -178,8 +179,7 @@ describe("Module Registry", () => {
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
             [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-            signatures,
-            overrides
+            signatures
         );
         await res.wait()
 
@@ -193,8 +193,7 @@ describe("Module Registry", () => {
         res = await securityModule.connect(user1).multicall(
             wallet1.address,
             [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-            signatures,
-            overrides
+            signatures
         );
         await res.wait()
         //await expect(res).to.emit(wallet1, "MultiCalled")
@@ -204,31 +203,31 @@ describe("Module Registry", () => {
 
     it("should lock", async() => {
         let tx
-        tx = await securityModule.connect(user1).lock(wallet1.address, overrides)
+        tx = await securityModule.connect(user1).lock(wallet1.address)
         await tx.wait()
 
         try {
-            tx = await securityModule.lock(wallet1.address, overrides)
+            tx = await securityModule.lock(wallet1.address)
             throw new Error("unreachable")
         } catch (e) {}
 
         try{
-            await securityModule.connect(user1).lock(wallet1.address, overrides)
+            await securityModule.connect(user1).lock(wallet1.address)
             throw new Error("unreachable")
         } catch(e) {}
 
-        tx = await securityModule.connect(user1).unlock(wallet1.address, overrides)
+        tx = await securityModule.connect(user1).unlock(wallet1.address)
         await tx.wait()
     })
 
     it("should change signer", async() => {
-        // owner has been changed to user3
+        // The owner is user3
         let res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(true)
         let tx = await securityModule.connect(user3).replaceSigner(
-            wallet1.address, owner.address, user1.address, overrides)
+            wallet1.address, owner.address, user1.address)
         await tx.wait()
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
@@ -239,16 +238,46 @@ describe("Module Registry", () => {
     })
 
     it("should remove signer", async() => {
-        // owner has been changed to user3
         let res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(true)
         let tx = await securityModule.connect(user3).removeSigner(
-            wallet1.address, user2.address, overrides)
+            wallet1.address, user2.address)
         await tx.wait()
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
         expect(res1).eq(false)
+        res1 = await securityModule.isSigner(wallet1.address, owner.address);
+        expect(res1).eq(true)
+    })
+
+    it("should add signer", async() => {
+        // add user2 to signer
+        let res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(false)
+        let tx = await securityModule.connect(user3).addSigner(
+            wallet1.address, user2.address)
+        await tx.wait()
+        res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(false)
+
+        try{
+            tx = await securityModule.connect(user3).addSigner(
+                wallet1.address, user1.address)
+            await tx.wait()
+            throw new Error("unreachable")
+        } catch (e) { console.log(e) }
+
+        //wait for calm-down period
+        await delay(lock_period * 1000);
+
+        tx = await securityModule.connect(user3).addSigner(
+            wallet1.address, user1.address)
+        await tx.wait()
+        res1 = await securityModule.isSigner(wallet1.address, user1.address);
+        expect(res1).eq(true)
+        res1 = await securityModule.isSigner(wallet1.address, user2.address);
+        expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, owner.address);
         expect(res1).eq(true)
     })

@@ -95,17 +95,16 @@ contract SecurityModule is BaseModule, Initializable {
         _;
     }
 
-    // signer managerment， TODO
-    function addSigner(address _wallet, address[] memory signer) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    // signer managerment
+    function addSigner(address _wallet, address signer) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
-        require(signer.length > 0, "SM: invalid signers number");
+        require(signer != address(0) && !isSigner(_wallet, signer), "SM: invalid newSigner or invalid oldSigner");
 
         SignerInfo storage signerInfo = signerInfos[_wallet];
         require(signerInfo.exist, "SM: wallet signer info not consistent");
-        for (uint i = 0; i < signer.length; i ++) {
-            signerInfo.signers.push(signer[i]);
-        }
+        signerInfo.signers.push(signer);
         signerInfos[_wallet] = signerInfo;
+        // calm-down period
         _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.addSigner.selector);
     }
 
