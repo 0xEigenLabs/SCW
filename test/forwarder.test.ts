@@ -11,7 +11,6 @@ const provider = waffle.provider
 describe('Forwarder', () => {
   let forwarderContract: Forwarder
   let forwarderFactory
-  const gasPrice = 20000
   let user1, owner
   const depositedToAccmount1 = utils.parseEther("5");
   before(async function() {
@@ -39,9 +38,8 @@ describe('Forwarder', () => {
     expect(rec.status).eq(1)
     const gasUsed = rec.gasUsed
 
-    let total = amount.add(utils.parseUnits(gasUsed.toString(), "gwei"))
     const account0EndEther = (await provider.getBalance(owner.address));
-    expect(account0EndEther).eq(account0StartEther.add(total));
+    expect(account0EndEther).eq(account0StartEther.add(amount));
   });
 
   it('Flush', async function() {
@@ -51,32 +49,36 @@ describe('Forwarder', () => {
     expect(rec.status).eq(1)
     // determine the forwarder contract address
     const forwarderContractAddress = await helpers.getNextContractAddress(owner.address);
-    console.log("new contract address", owner.address, owner.address, forwarderContractAddress)
 
-    const account0StartEther = await provider.getBalance(owner.address);
+    let account0StartEther = await owner.getBalance();
 
     // send funds to the contract address first
-    console.log("account 1 balance", (await provider.getBalance(user1.address)).toString())
+    console.log("account 1 balance", (await user1.getBalance()).toString())
     res = await user1.sendTransaction({to: forwarderContractAddress, value: amount });
     rec = await res.wait()
-    console.log("gas used", rec.gasUsed);
-    const gasUsed = utils.parseUnits(rec.gasUsed.toString(), 'gwei')
     expect(rec.status).eq(1)
+    console.log("owner balance", account0StartEther.toString())
     // Check that the ether is in the forwarder address and not yet in account 0
     expect(await provider.getBalance(forwarderContractAddress)).eq(amount);
-    expect(await provider.getBalance(owner.address)).eq(account0StartEther.add(gasUsed));
+    expect(await owner.getBalance()).eq(account0StartEther);
 
     forwarderFactory = await ethers.getContractFactory("Forwarder", provider);
     forwarderContract = await forwarderFactory.deploy();
     await forwarderContract.deployed();
-    console.log("deployed address", forwarderContract.address)
+
+    account0StartEther = await owner.getBalance();
+    console.log("deployed address", forwarderContract.address, account0StartEther.toString())
 
     expect(forwarderContract.address).to.equal(forwarderContractAddress);
     // Check that the ether is still in the forwarder address and not yet in account 0
-    res = await forwarderContract.flush.call(undefined, { from: owner.address, gasPrice: gasPrice});
+    console.log("forwarder", await provider.getBalance(forwarderContract.address))
+    res = await forwarderContract.connect(owner).flush.call(undefined, { from: owner.address});
     rec = await res.wait()
     expect(rec.status).eq(1)
-    console.log("forwarder", await provider.getBalance(forwarderContract.address))
-    expect(await provider.getBalance(owner.address)).eq(account0StartEther.add(amount.add(gasUsed)));
+    const gasPrice = res.gasPrice
+    const gasUsed = rec.gasUsed * gasPrice;
+    console.log("forwarder after flush", await provider.getBalance(forwarderContract.address))
+    console.log((await owner.getBalance()).toString(), account0StartEther.toString());
+    expect(await owner.getBalance()).eq(account0StartEther.add(amount.sub(gasUsed)));
   });
 });

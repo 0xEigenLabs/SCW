@@ -15,7 +15,6 @@ const getGas = async (tx) => {
 }
 
 describe('Wallet Factory Test', () => {
-  const gasPrice = 20000
   let wallet
   let proxy
   let walletStandaloneGas
@@ -68,9 +67,7 @@ describe('Wallet Factory Test', () => {
     await sm.deployed()
     await sm.initialize(registry.address, 120, 120)
 
-    let initTx = await wallet1.initialize([sm.address], [data], {
-        gasLimit: 8000000, gasPrice: 1
-    });
+    let initTx = await wallet1.initialize([sm.address], [data]);
     await initTx.wait()
     expect(await wallet1.authorised(sm.address)).to.equal(true)
 
