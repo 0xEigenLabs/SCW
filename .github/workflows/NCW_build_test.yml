@@ -33,7 +33,7 @@ jobs:
           key: ${{runner.OS}}-npm-caches-${{ hashFiles('package-lock.json') }}
       - name: Install Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
-        run: npm install
+        run: npm install --legacy-peer-deps
       - name: yarn build
         run: yarn build
       - name: start hardhat node
