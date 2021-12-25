@@ -34,9 +34,9 @@ jobs:
       - name: Install Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm install --legacy-peer-deps
-      - name: yarn build
-        run: yarn build
+      - name: compile contract
+        run: npx hardhat compile
       - name: start hardhat node
         run: npx hardhat node
-      - name: yarn test
+      - name: test contract
         run: yarn test --network localhost
