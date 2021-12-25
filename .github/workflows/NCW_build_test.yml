@@ -34,6 +34,8 @@ jobs:
       - name: Install Dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm install --legacy-peer-deps
+      - name: Create test .env file
+        run: touch .env && echo "RPC=http://localhost:7545" >.env && echo "DEVNET_PRIVKEY=0x11" >>.env
       - name: compile contract
         run: npx hardhat compile
       - name: start hardhat node
