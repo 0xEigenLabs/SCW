@@ -43,9 +43,26 @@ contract TransactionModule is BaseModule, Initializable {
         IWallet(_wallet).authoriseModule(_module, true, data);
     }
 
-    function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) returns (uint){
-        //TODO payment limitation
+    function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation storage pl = paymentInfos[_wallet];
+        require(_args.value < pl.large_amount_payment, "TM: Single payment excceed large_amount_payment");
+        //TODO: daily check
         execute(_wallet, _args);
     }
 
+    function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenUnlocked(_wallet) returns (bytes memory _result){
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation storage pl = paymentInfos[_wallet];
+        require(_value >= pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");
+        bool success;
+        (success, _result) = _to.call{value: _value}(_data);
+        if (!success) {
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                returndatacopy(0, 0, returndatasize())
+                revert(0, returndatasize())
+            }
+        }
+    }
 }
