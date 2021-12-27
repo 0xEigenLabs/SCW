@@ -11,7 +11,6 @@ contract SecurityModule is BaseModule, Initializable {
 
     uint public locked_security_period;
     uint public recovery_security_period;
-    event MultiCalled(address to, uint value, bytes data);
 
     struct Recovery {
         uint activeAt; // timestamp for activation of escape mode, 0 otherwise
@@ -22,14 +21,6 @@ contract SecurityModule is BaseModule, Initializable {
     struct SignerInfo {
         address[] signers;
         bool exist;
-    }
-
-    struct CallArgs {
-        address to;
-        uint value;
-        bytes data;
-        uint sequenceId;
-        uint expireTime;
     }
 
     mapping (address => SignerInfo) public signerInfos;
@@ -53,6 +44,7 @@ contract SecurityModule is BaseModule, Initializable {
         // decode signer info from data
         (address[] memory signers) = abi.decode(data, (address[]));
         SignerInfo storage signerInfo = signerInfos[_wallet];
+        // TODO make sure signers is emptry
         for (uint i = 0; i < signers.length; i++) {
             signerInfo.signers.push(signers[i]);
             require(signers[i] != IWallet(_wallet).owner(), "SM: signer cann't be owner");
@@ -252,17 +244,6 @@ contract SecurityModule is BaseModule, Initializable {
 
         //TODO encode expire time
         return keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), to, value, data, sequenceId));
-    }
-
-    function execute(address _wallet, CallArgs memory _args) internal {
-        address to = _args.to;
-        uint value = _args.value;
-        bytes memory data = _args.data;
-        uint sequenceId = _args.sequenceId;
-        uint expireTime = _args.expireTime;
-
-        IWallet(_wallet).invoke(to, value, data, expireTime, sequenceId);
-        emit MultiCalled(to, value, data);
     }
 
     function recoverSigner(bytes32 txHash, bytes memory _signatures, uint256 _i) internal pure returns (address){
