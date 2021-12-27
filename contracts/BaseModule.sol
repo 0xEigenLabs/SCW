@@ -7,6 +7,7 @@ import "./IModuleRegistry.sol";
 
 abstract contract BaseModule is IModule {
 
+    event MultiCalled(address to, uint value, bytes data);
     IModuleRegistry internal registry;
     address[] internal wallets;
     struct Lock {
@@ -18,6 +19,15 @@ abstract contract BaseModule is IModule {
 
     // Wallet specific lock storage
     mapping (address => Lock) internal locks;
+
+    struct CallArgs {
+        address to;
+        uint value;
+        bytes data;
+        uint sequenceId;
+        uint expireTime;
+    }
+
     /**
      * Modifier that will check if sender is owner
      */
@@ -98,5 +108,16 @@ abstract contract BaseModule is IModule {
             }
         }
         wallets.pop();
+    }
+
+    function execute(address _wallet, CallArgs memory _args) internal {
+        address to = _args.to;
+        uint value = _args.value;
+        bytes memory data = _args.data;
+        uint sequenceId = _args.sequenceId;
+        uint expireTime = _args.expireTime;
+
+        IWallet(_wallet).invoke(to, value, data, expireTime, sequenceId);
+        emit MultiCalled(to, value, data);
     }
 }
