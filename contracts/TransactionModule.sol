@@ -15,7 +15,7 @@ contract TransactionModule is BaseModule, Initializable {
 
     mapping (address => PaymentLimitation) public paymentInfos;
 
-    constructor() public {}
+    constructor() {}
 
     function initalize(IModuleRegistry _registry) public initializer {
         registry = _registry;
@@ -52,6 +52,7 @@ contract TransactionModule is BaseModule, Initializable {
     }
 
     function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenUnlocked(_wallet) returns (bytes memory _result){
+        require(_to != address(this), "TM: cann't call itself");
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_value >= pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");

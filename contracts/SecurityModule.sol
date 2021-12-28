@@ -24,7 +24,7 @@ contract SecurityModule is BaseModule, Initializable {
     }
 
     mapping (address => SignerInfo) public signerInfos;
-    constructor() public {}
+    constructor() {}
 
     function initialize(
         IModuleRegistry _registry,
