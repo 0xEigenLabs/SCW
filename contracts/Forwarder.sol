@@ -12,7 +12,7 @@ contract Forwarder {
   /**
    * Create the contract, and sets the destination address to that of the creator
    */
-  constructor() public {
+  constructor() {
     parentAddress = payable(msg.sender);
   }
 

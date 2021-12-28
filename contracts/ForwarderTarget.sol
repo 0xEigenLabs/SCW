@@ -8,8 +8,7 @@ import "./Forwarder.sol";
 contract ForwarderTarget {
   uint public data;
 
-  constructor() public {
-  }
+  constructor() {}
 
   function setDataWithValue(uint d, bool b) payable public returns (bool) {
     data = d;

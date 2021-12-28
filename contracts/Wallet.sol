@@ -44,7 +44,7 @@ contract Wallet is IWallet, Initializable {
         _;
     }
 
-    constructor() public {
+    constructor() {
         owner = msg.sender;
     }
 
@@ -168,6 +168,7 @@ contract Wallet is IWallet, Initializable {
     function invoke(address _target, uint _value, bytes calldata _data,
                     uint _expireTime, uint _sequenceId
                    ) external override onlyModule returns (bytes memory _result) {
+        require(_target != address(this), "W: cann't call itself");
         bool success;
         require(_expireTime >= block.timestamp, "Transaction expired");
 
