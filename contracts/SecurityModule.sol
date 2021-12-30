@@ -178,7 +178,7 @@ contract SecurityModule is BaseModule, Initializable {
         _setLock(_wallet, 0, bytes4(0));
     }
 
-    function executeRecovery(address _wallet) external onlyWallet(_wallet) {
+    function executeRecovery(address _wallet) public {
         require(
             isInRecovery(_wallet),
             "SM: No valid recovery found"
