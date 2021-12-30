@@ -36,7 +36,7 @@ module.exports = {
       url: process.env['RPC'] || process.exit(-1),
       accounts: [process.env.DEVNET_PRIVKEY],
       gas: 2100000,
-      gasPrice: 8000000
+      gasPrice: 2000000000
     }
   },
 }

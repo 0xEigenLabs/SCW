@@ -76,6 +76,7 @@ describe("Module Registry", () => {
         console.log("sorted", user1.address, user2.address, user3.address)
 
         let proxy = await (await ethers.getContractFactory("Proxy")).deploy(masterWallet.address);
+        console.log("proxy address", proxy.address)
         let walletAddress = await proxy.getAddress(salts[0]);
         expect(walletAddress).to.exist;
         console.log("proxy wallet", walletAddress)
@@ -94,9 +95,9 @@ describe("Module Registry", () => {
     })
 
     beforeEach(async function() {
-        await (await owner.sendTransaction({to: user1.address, value: ethers.utils.parseEther("1")})).wait()
-        await (await owner.sendTransaction({to: user2.address, value: ethers.utils.parseEther("1")})).wait()
-        await (await owner.sendTransaction({to: user3.address, value: ethers.utils.parseEther("1")})).wait()
+        await (await owner.sendTransaction({to: user1.address, value: ethers.utils.parseEther("0.01")})).wait()
+        await (await owner.sendTransaction({to: user2.address, value: ethers.utils.parseEther("0.01")})).wait()
+        await (await owner.sendTransaction({to: user3.address, value: ethers.utils.parseEther("0.01")})).wait()
         // deposit to wallet
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
@@ -183,20 +184,9 @@ describe("Module Registry", () => {
         );
         await res.wait()
 
-
-        sequenceId = await wallet1.getNextSequenceId()
-        iface = new ethers.utils.Interface(SMABI)
-        replaceOwnerData = iface.encodeFunctionData("executeRecovery", [wallet1.address])
-        hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
-        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
-
-        res = await securityModule.connect(user1).multicall(
-            wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-            signatures
-        );
-        await res.wait()
-        //await expect(res).to.emit(wallet1, "MultiCalled")
+        // the new owner executes recovery
+        let tx = await securityModule.connect(user3).executeRecovery(wallet1.address)
+        await tx.wait()
         res1 = await wallet1.owner();
         expect(res1).eq(user3.address)
     })
