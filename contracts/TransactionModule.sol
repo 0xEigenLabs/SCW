@@ -46,8 +46,8 @@ contract TransactionModule is BaseModule, Initializable {
     function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(_args.value < pl.large_amount_payment, "TM: Single payment excceed large_amount_payment");
-        //TODO: daily check
+        require(_args.value <= pl.large_amount_payment, "TM: Single payment excceed large_amount_payment");
+        //TODO: daily limit check
         execute(_wallet, _args);
     }
 
@@ -55,7 +55,7 @@ contract TransactionModule is BaseModule, Initializable {
         require(_to != address(this), "TM: cann't call itself");
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(_value >= pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");
+        require(_value > pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");
         bool success;
         (success, _result) = _to.call{value: _value}(_data);
         if (!success) {

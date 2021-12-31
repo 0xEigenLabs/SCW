@@ -104,16 +104,24 @@ describe.only("Transaction test", () => {
 
         let modules = [ transactionModule.address ]
         let encoder = ethers.utils.defaultAbiCoder
-        let data = [encoder.encode(["uint", "uint"], [10, 2])]
+
+
+        let du = ethers.utils.parseEther("1")
+        let lap = ethers.utils.parseEther("1")
+        let data = [encoder.encode(["uint", "uint"], [du, lap])]
         let initTx = await wallet1.initialize(modules, data);
         await initTx.wait()
+        console.log("Wallet created", wallet1.address)
     })
 
-    it("execute transaction test", async function() {
+    it.only("execute transaction test", async function() {
         console.log(owner.address)
         console.log("111")
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("0.01")})).wait()
         let user3StartEther = await provider.getBalance(user3.address);
-        let amount = 1
+        
+        console.log(user3StartEther.toString())
+        let amount = ethers.utils.parseEther("0.01")
         console.log("222")
         sequenceId = await wallet1.getNextSequenceId()
         
