@@ -17,7 +17,7 @@ contract TransactionModule is BaseModule, Initializable {
 
     constructor() {}
 
-    function initalize(IModuleRegistry _registry) public initializer {
+    function initialize(IModuleRegistry _registry) public initializer {
         registry = _registry;
     }
 
