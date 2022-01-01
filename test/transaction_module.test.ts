@@ -102,64 +102,76 @@ describe.only("Transaction test", () => {
         wallet1 = Wallet__factory.connect(walletAddress, owner)
         console.log("wallet address", wallet1.address)
 
-        let modules = [ transactionModule.address ]
+        let modules = [ transactionModule.address, securityModule.address]
         let encoder = ethers.utils.defaultAbiCoder
 
 
         let du = ethers.utils.parseEther("1")
         let lap = ethers.utils.parseEther("1")
-        let data = [encoder.encode(["uint", "uint"], [du, lap])]
+        let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
         let initTx = await wallet1.initialize(modules, data);
         await initTx.wait()
         console.log("Wallet created", wallet1.address)
     })
 
-    it.only("execute transaction test", async function() {
+    beforeEach(async function() {
+        await (await owner.sendTransaction({to: user1.address, value: ethers.utils.parseEther("0.01")})).wait()
+        await (await owner.sendTransaction({to: user2.address, value: ethers.utils.parseEther("0.01")})).wait()
+        await (await owner.sendTransaction({to: user3.address, value: ethers.utils.parseEther("0.01")})).wait()
+        // deposit to wallet
+        let depositAmount = ethers.utils.parseEther("0.1")
+        await owner.sendTransaction({to: wallet1.address, value: depositAmount})
+        sequenceId = await wallet1.getNextSequenceId()
+        expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+    })
+
+    it("execute transaction test", async function() {
         console.log(owner.address)
-        console.log("111")
         await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("0.01")})).wait()
         let user3StartEther = await provider.getBalance(user3.address);
         
         console.log(user3StartEther.toString())
         let amount = ethers.utils.parseEther("0.01")
-        console.log("222")
         sequenceId = await wallet1.getNextSequenceId()
         
-        console.log("333")
         let res = await transactionModule.connect(owner).executeTransaction(
             wallet1.address,
             [user3.address, amount, "0x", sequenceId, expireTime]
         );
         await res.wait()
         
-        console.log("444")
         let user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
 
-    it("execute large transaction test", async function() {
+    it.only("execute large transaction test", async function() {
+        console.log(owner.address)
+
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("2")})).wait()
+
         let user3StartEther = await provider.getBalance(user3.address);
+        console.log("111")
+        console.log("222")
 
-        let res1 = await transactionModule.connect(wallet1).init(wallet1)
+        console.log("333")
 
-        let sm = SecurityModule__factory.connect(securityModule.address, user1)
-
-        let amount = 3
+        let amount = ethers.utils.parseEther("2")
         sequenceId = await wallet1.getNextSequenceId()
         let iface = new ethers.utils.Interface(TMABI)
-        let largeTxData = iface.encodeFunctionData("executeLargeTransaction", [user3.address, amount, , sequenceId, expireTime])
-        let hash = await helpers.signHash(securityModule.address, amount, largeTxData, /*expireTime,*/ sequenceId)
+        let largeTxData = iface.encodeFunctionData("executeLargeTransaction", [wallet1.address, user3.address, amount, "0x"])
+        let hash = await helpers.signHash(transactionModule.address, amount, largeTxData, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        console.log("444")
 
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
-            [securityModule.address, amount, largeTxData, sequenceId, expireTime],
+            [transactionModule.address, amount, largeTxData, sequenceId, expireTime],
             signatures
         );
         await res.wait()
-
-        // let res1 = await transactionModule.connect(owner).executeLargeTransaction(wallet1.address, user3.address, amount, data]);
-        // await res1.wait()
+        
+        console.log("555")
 
         let user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
