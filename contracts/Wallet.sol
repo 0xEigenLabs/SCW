@@ -15,6 +15,7 @@ contract Wallet is IWallet, Initializable {
     event AuthorisedModule(address indexed module, bool value);
     event Received(uint indexed value, address indexed sender, bytes data);
     event Invoked(address from, address to, uint value, bytes data);
+    event RawInvoked(address from, address to, uint value, bytes data);
 
     // Public fields
     address public override owner;
@@ -182,5 +183,20 @@ contract Wallet is IWallet, Initializable {
             }
         }
         emit Invoked(msg.sender, _target, _value, _data);
+    }
+
+    function raw_invoke(address _target, uint _value, bytes calldata _data
+                   ) external override onlyModule returns (bytes memory _result) {
+        require(_target != address(this), "W: cann't call itself");
+        bool success;
+        (success, _result) = _target.call{value: _value}(_data);
+        if (!success) {
+            // solhint-disable-next-line no-inline-assembly
+            assembly {
+                returndatacopy(0, 0, returndatasize())
+                revert(0, returndatasize())
+            }
+        }
+        emit RawInvoked(msg.sender, _target, _value, _data);
     }
 }

@@ -30,15 +30,15 @@ let user3
 let sequenceId
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const TMABI = [
-    "function executeTransaction(address)", // to be confirmed
-    "function executeLargeTransaction(address, address, uint, bytes)" // to be confirmed
+    "function executeTransaction(address)",
+    "function executeLargeTransaction(address, address, uint, bytes)"
 ]
 
 let lock_period = 10 //s
 let recovery_period = 120 //s
 let expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
 
-describe.only("Transaction test", () => {
+describe("Transaction test", () => {
     before(async () => {
         let factory = await ethers.getContractFactory("ModuleRegistry");
         moduleRegistry = await factory.deploy()
@@ -105,7 +105,6 @@ describe.only("Transaction test", () => {
         let modules = [ transactionModule.address, securityModule.address]
         let encoder = ethers.utils.defaultAbiCoder
 
-
         let du = ethers.utils.parseEther("1")
         let lap = ethers.utils.parseEther("1")
         let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
@@ -144,36 +143,29 @@ describe.only("Transaction test", () => {
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
 
-    it.only("execute large transaction test", async function() {
-        console.log(owner.address)
-
+    it("execute large transaction test", async function() {
         await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("2")})).wait()
 
         let user3StartEther = await provider.getBalance(user3.address);
-        console.log("111")
-        console.log("222")
+        console.log(user3StartEther.toString())
 
-        console.log("333")
-
-        let amount = ethers.utils.parseEther("2")
+        let amount = ethers.utils.parseEther("1.1")
+        let amountMulti = 0
         sequenceId = await wallet1.getNextSequenceId()
         let iface = new ethers.utils.Interface(TMABI)
         let largeTxData = iface.encodeFunctionData("executeLargeTransaction", [wallet1.address, user3.address, amount, "0x"])
-        let hash = await helpers.signHash(transactionModule.address, amount, largeTxData, /*expireTime,*/ sequenceId)
+        let hash = await helpers.signHash(transactionModule.address, amountMulti, largeTxData, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
-
-        console.log("444")
 
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
-            [transactionModule.address, amount, largeTxData, sequenceId, expireTime],
+            [transactionModule.address, amountMulti, largeTxData, sequenceId, expireTime],
             signatures
         );
         await res.wait()
-        
-        console.log("555")
 
         let user3EndEther = (await provider.getBalance(user3.address));
+        console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
     })
 });

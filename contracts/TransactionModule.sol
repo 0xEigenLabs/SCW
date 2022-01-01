@@ -56,14 +56,7 @@ contract TransactionModule is BaseModule, Initializable {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_value > pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");
-        bool success;
-        (success, _result) = _to.call{value: _value}(_data);
-        if (!success) {
-            // solhint-disable-next-line no-inline-assembly
-            assembly {
-                returndatacopy(0, 0, returndatasize())
-                revert(0, returndatasize())
-            }
-        }
+        //TODO: daily limit check
+        return IWallet(_wallet).raw_invoke(_to, _value, _data);
     }
 }
