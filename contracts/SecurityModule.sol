@@ -67,6 +67,10 @@ contract SecurityModule is BaseModule, Initializable {
         return findSigner(signerInfo.signers, _signer);
     }
 
+    function getSigners(address _wallet) public view returns(address[] memory) {
+        return signerInfos[_wallet].signers;
+    }
+
     /**
      * @notice Helper method to check if a wallet is locked.
      * @param _wallet The target wallet.

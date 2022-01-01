@@ -44,4 +44,10 @@ interface IWallet {
         uint expireTime,
         uint sequenceId
     ) external returns (bytes memory);
+
+    function raw_invoke(
+        address toAddress,
+        uint value,
+        bytes calldata data
+    ) external returns (bytes memory);
 }
