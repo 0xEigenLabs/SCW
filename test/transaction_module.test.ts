@@ -5,6 +5,7 @@ const chai = require("chai");
 const { solidity } = require("ethereum-waffle");
 chai.use(solidity);
 const { expect } = chai;
+const hre = require("hardhat");
 
 import { ModuleRegistry } from "../typechain/ModuleRegistry"
 import { ModuleRegistry__factory } from "../typechain/factories/ModuleRegistry__factory"
@@ -21,6 +22,7 @@ const provider = waffle.provider
 let moduleRegistry
 let transactionModule
 let securityModule
+let testToken
 let masterWallet
 let wallet1
 let owner
@@ -51,6 +53,11 @@ describe("Transaction test", () => {
         factory = await ethers.getContractFactory("TransactionModule");
         transactionModule = await factory.deploy()
         await transactionModule.deployed()
+
+        factory = await ethers.getContractFactory("TestToken");
+        testToken = await factory.deploy(100000)
+        await testToken.deployed()
+        console.log("testToken address", testToken.address)
 
         await securityModule.initialize(moduleRegistry.address, lock_period, recovery_period)
         console.log("secure module", securityModule.address)
@@ -110,7 +117,7 @@ describe("Transaction test", () => {
         let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
         let initTx = await wallet1.initialize(modules, data);
         await initTx.wait()
-        console.log("Wallet created", wallet1.address)
+        console.log("Wallet created", wallet1.address) 
     })
 
     beforeEach(async function() {
@@ -141,6 +148,38 @@ describe("Transaction test", () => {
         
         let user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
+    });
+
+    it("execute ERC20 token transaction test", async function() {
+        console.log(owner.address)
+
+        let erc20Artifact = await hre.artifacts.readArtifact("TestToken");
+        const TestTokenABI = erc20Artifact.abi
+
+        let ownerContract = new ethers.Contract(testToken.address, TestTokenABI, owner)
+        let ownerBalance = (await ownerContract.balanceOf(owner.address)).toString()
+        console.log("owner balance", ownerBalance)
+
+        await (await ownerContract.transfer(wallet1.address, 10)).wait()
+
+        let user3Contract = new ethers.Contract(testToken.address, TestTokenABI, user3)
+        let user3StartBalance = (await user3Contract.balanceOf(user3.address))
+        console.log("user3StartBalance ", user3StartBalance.toString())
+        
+        let amount = 1
+        sequenceId = await wallet1.getNextSequenceId()
+        let iface = new ethers.utils.Interface(TestTokenABI)
+        let txData = iface.encodeFunctionData("transfer", [user3.address, amount])
+        
+        let res = await transactionModule.connect(owner).executeTransaction(
+            wallet1.address,
+            [testToken.address, 0, txData, sequenceId, expireTime]
+        );
+        await res.wait()
+        
+        let user3EndBalance = (await user3Contract.balanceOf(user3.address))
+        console.log("user3EndBalance ", user3EndBalance.toString())
+        expect(user3EndBalance).eq(user3StartBalance.add(amount))
     });
 
     it("execute large transaction test", async function() {
