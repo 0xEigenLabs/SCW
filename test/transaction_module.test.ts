@@ -65,7 +65,7 @@ describe("Transaction test", () => {
         await transactionModule.initialize(moduleRegistry.address)
         console.log("transaction module", transactionModule.address)
 
-        //register the module
+        // register the module
         let res = await moduleRegistry.registerModule(
             transactionModule.address,
             ethers.utils.formatBytes32String("TM")
@@ -109,14 +109,32 @@ describe("Transaction test", () => {
         wallet1 = Wallet__factory.connect(walletAddress, owner)
         console.log("wallet address", wallet1.address)
 
-        let modules = [ transactionModule.address, securityModule.address]
-        let encoder = ethers.utils.defaultAbiCoder
+        /** 
+         * There are two ways to add modules to the wallet:
+         * 1.Initialize the wallet with the modules.
+         * 2.Call the wallet's authoriseModule method.
+         */ 
+        // 1:Initialize the wallet with the modules.
+        // let modules = [ transactionModule.address, securityModule.address]
+        // let encoder = ethers.utils.defaultAbiCoder
 
-        let du = ethers.utils.parseEther("1")
-        let lap = ethers.utils.parseEther("1")
-        let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
-        let initTx = await wallet1.initialize(modules, data);
-        await initTx.wait()
+        // let du = ethers.utils.parseEther("1")
+        // let lap = ethers.utils.parseEther("1")
+        // let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
+        // let initTx = await wallet1.initialize(modules, data);
+        // await initTx.wait()
+
+        // 2:Call the wallet's authoriseModule method.
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("1")})).wait()
+        let encoder = ethers.utils.defaultAbiCoder
+        // You must initialize the wallet with at least one module.
+        await (await wallet1.initialize([securityModule.address], [encoder.encode(["address[]"], [[user1.address, user2.address]])])).wait()
+
+        let du = ethers.utils.parseEther("15")
+        let lap = ethers.utils.parseEther("10")
+        let tmData = encoder.encode(["uint", "uint"], [du, lap])
+        let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
+        await res2.wait()
         console.log("Wallet created", wallet1.address) 
     })
 
@@ -183,12 +201,12 @@ describe("Transaction test", () => {
     });
 
     it("execute large transaction test", async function() {
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("2")})).wait()
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("12")})).wait()
 
         let user3StartEther = await provider.getBalance(user3.address);
         console.log(user3StartEther.toString())
 
-        let amount = ethers.utils.parseEther("1.1")
+        let amount = ethers.utils.parseEther("11")
         let amountMulti = 0
         sequenceId = await wallet1.getNextSequenceId()
         let iface = new ethers.utils.Interface(TMABI)
