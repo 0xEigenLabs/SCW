@@ -9,8 +9,8 @@ import "./IModuleRegistry.sol";
 
 contract SecurityModule is BaseModule, Initializable {
 
-    uint public locked_security_period;
-    uint public recovery_security_period;
+    uint public lockedSecurityPeriod;
+    uint public recoverySecurityPeriod;
 
     struct Recovery {
         uint activeAt; // timestamp for activation of escape mode, 0 otherwise
@@ -18,38 +18,42 @@ contract SecurityModule is BaseModule, Initializable {
     }
     mapping (address => Recovery) public recoveries;
 
-    struct SignerInfo {
+    struct SignerConfInfo {
         address[] signers;
         bool exist;
+        uint lockedPeriod;
+        uint recoveryPeriod;
     }
 
-    mapping (address => SignerInfo) public signerInfos;
+    mapping (address => SignerConfInfo) public signerConfInfos;
     constructor() {}
 
     function initialize(
         IModuleRegistry _registry,
-        uint _locked_security_period,
-        uint _recovery_security_period
+        uint _lockedSecurityPeriod,
+        uint _recoverySecurityPeriod
     ) public initializer {
         registry = _registry;
-        locked_security_period = _locked_security_period;
-        recovery_security_period = _recovery_security_period;
+        lockedSecurityPeriod = _lockedSecurityPeriod;
+        recoverySecurityPeriod = _recoverySecurityPeriod;
     }
 
     function init(address _wallet, bytes memory data)  public override onlyWallet(_wallet) {
         require(!isRegisteredWallet(_wallet), "SM: should not add same module to wallet twice");
-        require(!signerInfos[_wallet].exist, "SM: wallet exists in signerInfos");
+        require(!signerConfInfos[_wallet].exist, "SM: wallet exists in signerConfInfos");
 
         addWallet(_wallet);
         // decode signer info from data
         (address[] memory signers) = abi.decode(data, (address[]));
-        SignerInfo storage signerInfo = signerInfos[_wallet];
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
         // TODO make sure signers is emptry
         for (uint i = 0; i < signers.length; i++) {
-            signerInfo.signers.push(signers[i]);
+            signerConfInfo.signers.push(signers[i]);
             require(signers[i] != IWallet(_wallet).owner(), "SM: signer cann't be owner");
         }
-        signerInfo.exist = true;
+        signerConfInfo.exist = true;
+        signerConfInfo.lockedPeriod = lockedSecurityPeriod;
+        signerConfInfo.recoveryPeriod = recoverySecurityPeriod;
     }
 
     /**
@@ -62,13 +66,37 @@ contract SecurityModule is BaseModule, Initializable {
         IWallet(_wallet).authoriseModule(_module, true, data);
     }
 
+    function setLockedSecurityPeriod(address _wallet, uint _lockedSecurityPeriod) public onlyOwner(_wallet) {
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
+        signerConfInfo.lockedPeriod = _lockedSecurityPeriod;
+    }
+
+    function setRecoverySecurityPeriod(address _wallet, uint _recoverySecurityPeriod) public onlyOwner(_wallet) {
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
+        signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
+    }
+
+    function getLockedSecurityPeriod(address _wallet) public view returns (uint) {
+        SignerConfInfo memory signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
+        return signerConfInfo.lockedPeriod;
+    }
+
+    function getRecoverySecurityPeriod(address _wallet) public view returns (uint) {
+        SignerConfInfo memory signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
+        return signerConfInfo.recoveryPeriod;
+    }
+
     function isSigner(address _wallet, address _signer) public view returns (bool) {
-        SignerInfo storage signerInfo = signerInfos[_wallet];
-        return findSigner(signerInfo.signers, _signer);
+        SignerConfInfo memory signerConfInfo = signerConfInfos[_wallet];
+        return findSigner(signerConfInfo.signers, _signer);
     }
 
     function getSigners(address _wallet) public view returns(address[] memory) {
-        return signerInfos[_wallet].signers;
+        return signerConfInfos[_wallet].signers;
     }
 
     /**
@@ -104,25 +132,25 @@ contract SecurityModule is BaseModule, Initializable {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(signer != address(0) && !isSigner(_wallet, signer), "SM: invalid newSigner or invalid oldSigner");
 
-        SignerInfo storage signerInfo = signerInfos[_wallet];
-        require(signerInfo.exist, "SM: wallet signer info not consistent");
-        signerInfo.signers.push(signer);
-        signerInfos[_wallet] = signerInfo;
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: wallet signer info not consistent");
+        signerConfInfo.signers.push(signer);
+        signerConfInfos[_wallet] = signerConfInfo;
         // calm-down period
-        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.addSigner.selector);
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
     }
 
     function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyOwner(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(_newSigner != address(0) && isSigner(_wallet, _oldSigner), "SM: invalid newSigner or invalid oldSigner");
 
-        SignerInfo storage signerInfo = signerInfos[_wallet];
-        require(signerInfo.exist, "SM: Invalid wallet");
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
 
-        uint endIndex = signerInfo.signers.length - 1;
-        for (uint i = 0; i < signerInfo.signers.length - 1; i ++) {
-            if (_oldSigner == signerInfo.signers[i]) {
-                signerInfo.signers[i] = _newSigner;
+        uint endIndex = signerConfInfo.signers.length - 1;
+        for (uint i = 0; i < signerConfInfo.signers.length - 1; i ++) {
+            if (_oldSigner == signerConfInfo.signers[i]) {
+                signerConfInfo.signers[i] = _newSigner;
                 i = endIndex;
             }
         }
@@ -133,18 +161,18 @@ contract SecurityModule is BaseModule, Initializable {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(isSigner(_wallet, _oldSigner), "SM: invalid oldSigner");
 
-        SignerInfo storage signerInfo = signerInfos[_wallet];
-        require(signerInfo.exist, "SM: Invalid wallet");
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: Invalid wallet");
 
-        uint endIndex = signerInfo.signers.length - 1;
-        address lastSigner = signerInfo.signers[endIndex];
-        for (uint i = 0; i < signerInfo.signers.length - 1; i ++) {
-            if (_oldSigner == signerInfo.signers[i]) {
-                signerInfo.signers[i] = lastSigner;
+        uint endIndex = signerConfInfo.signers.length - 1;
+        address lastSigner = signerConfInfo.signers[endIndex];
+        for (uint i = 0; i < signerConfInfo.signers.length - 1; i ++) {
+            if (_oldSigner == signerConfInfo.signers[i]) {
+                signerConfInfo.signers[i] = lastSigner;
                 i = endIndex;
             }
         }
-        signerInfo.signers.pop();
+        signerConfInfo.signers.pop();
         // emit event
     }
 
@@ -166,8 +194,9 @@ contract SecurityModule is BaseModule, Initializable {
             !isInRecovery(_wallet),
             "SM: should not trigger twice"
         );
-        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.triggerRecovery.selector);
-        uint expiry = block.timestamp + recovery_security_period;
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.triggerRecovery.selector);
+        uint expiry = block.timestamp + signerConfInfo.recoveryPeriod;
 
         recoveries[_wallet] = Recovery({
             activeAt: expiry,
@@ -200,7 +229,8 @@ contract SecurityModule is BaseModule, Initializable {
      * @param _wallet The target wallet.
      */
     function lock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
-        _setLock(_wallet, block.timestamp + locked_security_period, SecurityModule.lock.selector);
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.lock.selector);
     }
 
     /**
@@ -224,9 +254,9 @@ contract SecurityModule is BaseModule, Initializable {
      * @param _signatures Concatenated signatures ordered based on increasing signer's address.
      */
     function multicall(address _wallet, CallArgs memory _args, bytes memory _signatures) public onlyOwnerOrSigner(_wallet) {
-        SignerInfo storage signerInfo = signerInfos[_wallet];
-        require(signerInfo.exist, "SM: invalid wallet");
-        uint threshold = (signerInfo.signers.length + 1) / 2;
+        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
+        require(signerConfInfo.exist, "SM: invalid wallet");
+        uint threshold = (signerConfInfo.signers.length + 1) / 2;
         uint256 count = _signatures.length / 65;
         require(count >= threshold, "SM: Not enough signatures");
         bytes32 txHash = getHash(_args);
@@ -236,7 +266,7 @@ contract SecurityModule is BaseModule, Initializable {
             address recovered = recoverSigner(txHash, _signatures, i);
             require(recovered > lastSigner, "SM: Badly ordered signatures"); // make sure signers are different
             lastSigner = recovered;
-            if (findSigner(signerInfo.signers, recovered)) {
+            if (findSigner(signerConfInfo.signers, recovered)) {
                 valid += 1;
                 if (valid >= threshold) {
                     execute(_wallet, _args);

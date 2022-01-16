@@ -8,8 +8,8 @@ import "./BaseModule.sol";
 contract TransactionModule is BaseModule, Initializable {
 
     struct PaymentLimitation {
-        uint daily_upbound; // need multi signature if total amount over this
-        uint large_amount_payment; // need multi signature if single amount over this
+        uint dailyUpbound; // need multi signature if total amount over this
+        uint largeAmountPayment; // need multi signature if single amount over this
         bool exist;
     }
 
@@ -25,12 +25,36 @@ contract TransactionModule is BaseModule, Initializable {
         require(!isRegisteredWallet(_wallet), "TM: should not add same module to wallet twice");
         require(!paymentInfos[_wallet].exist, "TM: wallet exists in paymentInfos");
         addWallet(_wallet);
-        (uint _daily_upbound, uint _lap) = abi.decode(data, (uint, uint));
+        (uint _dailyUpbound, uint _largeAmountPayment) = abi.decode(data, (uint, uint));
 
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        pl.daily_upbound = _daily_upbound;
-        pl.large_amount_payment = _lap;
+        pl.dailyUpbound = _dailyUpbound;
+        pl.largeAmountPayment = _largeAmountPayment;
         pl.exist = true;
+    }
+
+    function setDailyUpbound(address _wallet, uint _dailyUpbound) public onlyOwner(_wallet) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation storage pl = paymentInfos[_wallet];
+        pl.dailyUpbound = _dailyUpbound;
+    }
+
+    function setLargeAmountPayment(address _wallet, uint _largeAmountPayment) public onlyOwner(_wallet) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation storage pl = paymentInfos[_wallet];
+        pl.largeAmountPayment = _largeAmountPayment;
+    }
+
+    function getDailyUpbound(address _wallet) public view returns (uint) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation memory pl = paymentInfos[_wallet];
+        return pl.dailyUpbound;
+    }
+
+    function getLargeAmountPayment(address _wallet) public view returns (uint) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+        PaymentLimitation memory pl = paymentInfos[_wallet];
+        return pl.largeAmountPayment;
     }
 
     /**
@@ -46,7 +70,7 @@ contract TransactionModule is BaseModule, Initializable {
     function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(_args.value <= pl.large_amount_payment, "TM: Single payment excceed large_amount_payment");
+        require(_args.value <= pl.largeAmountPayment, "TM: Single payment excceed largeAmountPayment");
         //TODO: daily limit check
         execute(_wallet, _args);
     }
@@ -55,7 +79,7 @@ contract TransactionModule is BaseModule, Initializable {
         require(_to != address(this), "TM: cann't call itself");
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(_value > pl.large_amount_payment, "TM: Single payment lower than large_amount_payment");
+        require(_value > pl.largeAmountPayment, "TM: Single payment lower than largeAmountPayment");
         //TODO: daily limit check
         return IWallet(_wallet).raw_invoke(_to, _value, _data);
     }
