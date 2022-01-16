@@ -36,9 +36,9 @@ const TMABI = [
     "function executeLargeTransaction(address, address, uint, bytes)"
 ]
 
-let lock_period = 10 //s
-let recovery_period = 120 //s
-let expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+let lockPeriod = 10 //s
+let recoveryPeriod = 120 //s
+let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800; // 60 seconds
 
 describe("Transaction test", () => {
     before(async () => {
@@ -59,7 +59,7 @@ describe("Transaction test", () => {
         await testToken.deployed()
         console.log("testToken address", testToken.address)
 
-        await securityModule.initialize(moduleRegistry.address, lock_period, recovery_period)
+        await securityModule.initialize(moduleRegistry.address, lockPeriod, recoveryPeriod)
         console.log("secure module", securityModule.address)
 
         await transactionModule.initialize(moduleRegistry.address)
@@ -120,12 +120,12 @@ describe("Transaction test", () => {
 
         // let du = ethers.utils.parseEther("1")
         // let lap = ethers.utils.parseEther("1")
-        // let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]"], [[user1.address, user2.address]])]
+        // let data = [encoder.encode(["uint", "uint"], [du, lap]), encoder.encode(["address[]", "uint", "uint"], [[user1.address, user2.address], lockPeriod, recoveryPeriod])]
         // let initTx = await wallet1.initialize(modules, data);
         // await initTx.wait()
 
         // 2:Call the wallet's authoriseModule method.
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("1")})).wait()
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("1.2")})).wait()
         let encoder = ethers.utils.defaultAbiCoder
         // You must initialize the wallet with at least one module.
         await (await wallet1.initialize([securityModule.address], [encoder.encode(["address[]"], [[user1.address, user2.address]])])).wait()
@@ -146,7 +146,28 @@ describe("Transaction test", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+        expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
+    })
+
+    it("change transaction module's daily upbound or large amount payment", async function() {
+        let du = await transactionModule.getDailyUpbound(wallet1.address)
+        let lap = await transactionModule.getLargeAmountPayment(wallet1.address)
+        expect(du).eq(ethers.utils.parseEther("15"))
+        expect(lap).eq(ethers.utils.parseEther("10"))
+
+        await (await transactionModule.connect(owner).setDailyUpbound(wallet1.address, ethers.utils.parseEther("14"))).wait()
+        await (await transactionModule.connect(owner).setLargeAmountPayment(wallet1.address, ethers.utils.parseEther("9"))).wait()
+        du = await transactionModule.getDailyUpbound(wallet1.address)
+        lap = await transactionModule.getLargeAmountPayment(wallet1.address)
+        expect(du).eq(ethers.utils.parseEther("14"))
+        expect(lap).eq(ethers.utils.parseEther("9"))
+        
+        await (await transactionModule.connect(owner).setDailyUpbound(wallet1.address, ethers.utils.parseEther("15"))).wait()
+        await (await transactionModule.connect(owner).setLargeAmountPayment(wallet1.address, ethers.utils.parseEther("10"))).wait()
+        du = await transactionModule.getDailyUpbound(wallet1.address)
+        lap = await transactionModule.getLargeAmountPayment(wallet1.address)
+        expect(du).eq(ethers.utils.parseEther("15"))
+        expect(lap).eq(ethers.utils.parseEther("10"))
     })
 
     it("execute transaction test", async function() {

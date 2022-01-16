@@ -31,9 +31,9 @@ const SMABI = [
     "function triggerRecovery(address, address)"
 ]
 
-let lock_period = 5 //s
-let recovery_period = 120 //s
-let expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+let lockPeriod = 5 //s
+let recoveryPeriod = 120 //s
+let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Module Registry", () => {
@@ -45,7 +45,7 @@ describe("Module Registry", () => {
         securityModule = await factory.deploy()
         await securityModule.deployed()
 
-        await securityModule.initialize(moduleRegistry.address, lock_period, recovery_period)
+        await securityModule.initialize(moduleRegistry.address, lockPeriod, recoveryPeriod)
         console.log("secure module", securityModule.address)
 
         //register the module
@@ -102,7 +102,28 @@ describe("Module Registry", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor((new Date().getTime()) / 1000) + 600; // 60 seconds
+        expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
+    })
+
+    it("change security module's lock period or recovery period", async function() {
+        let lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
+        let rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
+        expect(lp).eq(5)
+        expect(rp).eq(120)
+
+        await (await securityModule.connect(owner).setLockedSecurityPeriod(wallet1.address, 4)).wait()
+        await (await securityModule.connect(owner).setRecoverySecurityPeriod(wallet1.address, 119)).wait()
+        lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
+        rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
+        expect(lp).eq(4)
+        expect(rp).eq(119)
+        
+        await (await securityModule.connect(owner).setLockedSecurityPeriod(wallet1.address, 5)).wait()
+        await (await securityModule.connect(owner).setRecoverySecurityPeriod(wallet1.address, 120)).wait()
+        lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
+        rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
+        expect(lp).eq(5)
+        expect(rp).eq(120)
     })
 
     it("should trigger recovery", async function() {
@@ -259,7 +280,7 @@ describe("Module Registry", () => {
         } catch (e) { console.log(e) }
 
         //wait for calm-down period
-        await delay(lock_period * 1000);
+        await delay(lockPeriod * 1000);
 
         tx = await securityModule.connect(user3).addSigner(
             wallet1.address, user1.address)
