@@ -101,7 +101,7 @@ abstract contract BaseModule is IModule {
 
     function removeWallet(address _wallet) internal {
         uint endIndex = wallets.length - 1;
-        for (uint i = 0; i < wallets.length - 1; i ++) {
+        for (uint i = 0; i < endIndex; i ++) {
             if ( wallets[i] == _wallet ) {
                 wallets[i] = wallets[endIndex];
                 i = endIndex;
