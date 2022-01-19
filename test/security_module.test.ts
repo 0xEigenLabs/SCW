@@ -31,8 +31,8 @@ const SMABI = [
     "function triggerRecovery(address, address)"
 ]
 
-let lockPeriod = 5 //s
-let recoveryPeriod = 120 //s
+let lockPeriod = 172800 //172800s = 48h
+let recoveryPeriod = 172800 //s
 let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
