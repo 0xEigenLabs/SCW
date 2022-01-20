@@ -111,15 +111,13 @@ describe("Module Registry", () => {
         expect(lp).eq(5)
         expect(rp).eq(120)
 
-        await (await securityModule.connect(owner).setLockedSecurityPeriod(wallet1.address, 4)).wait()
-        await (await securityModule.connect(owner).setRecoverySecurityPeriod(wallet1.address, 119)).wait()
+        await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 4, 119)).wait()
         lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
         rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
         expect(lp).eq(4)
         expect(rp).eq(119)
         
-        await (await securityModule.connect(owner).setLockedSecurityPeriod(wallet1.address, 5)).wait()
-        await (await securityModule.connect(owner).setRecoverySecurityPeriod(wallet1.address, 120)).wait()
+        await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 5, 120)).wait()
         lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
         rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
         expect(lp).eq(5)
