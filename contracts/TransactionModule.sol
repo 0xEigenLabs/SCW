@@ -33,16 +33,16 @@ contract TransactionModule is BaseModule, Initializable {
         pl.exist = true;
     }
 
-    function setDailyUpbound(address _wallet, uint _dailyUpbound) public onlyOwner(_wallet) {
+    function setTMParametar(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) public onlyOwner(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        pl.dailyUpbound = _dailyUpbound;
-    }
-
-    function setLargeAmountPayment(address _wallet, uint _largeAmountPayment) public onlyOwner(_wallet) {
-        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
-        PaymentLimitation storage pl = paymentInfos[_wallet];
-        pl.largeAmountPayment = _largeAmountPayment;
+        require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parametar");
+        if (pl.dailyUpbound != _dailyUpbound) {
+            pl.dailyUpbound = _dailyUpbound;
+        }
+        if (pl.largeAmountPayment != _largeAmountPayment) {
+            pl.largeAmountPayment = _largeAmountPayment;
+        }
     }
 
     function getDailyUpbound(address _wallet) public view returns (uint) {

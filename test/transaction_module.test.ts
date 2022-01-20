@@ -155,15 +155,13 @@ describe("Transaction test", () => {
         expect(du).eq(ethers.utils.parseEther("15"))
         expect(lap).eq(ethers.utils.parseEther("10"))
 
-        await (await transactionModule.connect(owner).setDailyUpbound(wallet1.address, ethers.utils.parseEther("14"))).wait()
-        await (await transactionModule.connect(owner).setLargeAmountPayment(wallet1.address, ethers.utils.parseEther("9"))).wait()
+        await (await transactionModule.connect(owner).setTMParametar(wallet1.address, ethers.utils.parseEther("14"), ethers.utils.parseEther("9"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("14"))
         expect(lap).eq(ethers.utils.parseEther("9"))
         
-        await (await transactionModule.connect(owner).setDailyUpbound(wallet1.address, ethers.utils.parseEther("15"))).wait()
-        await (await transactionModule.connect(owner).setLargeAmountPayment(wallet1.address, ethers.utils.parseEther("10"))).wait()
+        await (await transactionModule.connect(owner).setTMParametar(wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("15"))

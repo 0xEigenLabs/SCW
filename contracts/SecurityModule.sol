@@ -66,16 +66,16 @@ contract SecurityModule is BaseModule, Initializable {
         IWallet(_wallet).authoriseModule(_module, true, data);
     }
 
-    function setLockedSecurityPeriod(address _wallet, uint _lockedSecurityPeriod) public onlyOwner(_wallet) {
+    function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) public onlyOwner(_wallet) {
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
         require(signerConfInfo.exist, "SM: Invalid wallet");
-        signerConfInfo.lockedPeriod = _lockedSecurityPeriod;
-    }
-
-    function setRecoverySecurityPeriod(address _wallet, uint _recoverySecurityPeriod) public onlyOwner(_wallet) {
-        SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
-        require(signerConfInfo.exist, "SM: Invalid wallet");
-        signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
+        require(signerConfInfo.lockedPeriod != _lockedSecurityPeriod || signerConfInfo.recoveryPeriod != _recoverySecurityPeriod, "SM:Must change at least one period");
+        if (signerConfInfo.lockedPeriod != _lockedSecurityPeriod) {
+            signerConfInfo.lockedPeriod = _lockedSecurityPeriod;
+        }
+        if (signerConfInfo.recoveryPeriod != _recoverySecurityPeriod) {
+            signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
+        }
     }
 
     function getLockedSecurityPeriod(address _wallet) public view returns (uint) {
