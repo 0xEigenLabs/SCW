@@ -243,5 +243,29 @@ describe("Transaction test", () => {
         let user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
+    });
+
+    it("daily limit check test", async function() {
+        console.log(owner.address)
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("16")})).wait()
+        
+        let amount = ethers.utils.parseEther("9")
+        sequenceId = await wallet1.getNextSequenceId()
+        
+        let res = await transactionModule.connect(owner).executeTransaction(
+            wallet1.address,
+            [user3.address, amount, "0x", sequenceId, expireTime]
+        );
+        await res.wait()
+
+        amount = ethers.utils.parseEther("7")
+        sequenceId = await wallet1.getNextSequenceId()
+        try{
+            res = await transactionModule.connect(owner).executeTransaction(
+                wallet1.address,
+                [user3.address, amount, "0x", sequenceId, expireTime]
+            );
+            await res.wait()
+        } catch (e) { console.log(e) }
     })
 });
