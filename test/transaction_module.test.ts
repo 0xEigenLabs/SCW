@@ -220,7 +220,7 @@ describe("Transaction test", () => {
     });
 
     it("execute large transaction test", async function() {
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("12")})).wait()
+        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("16")})).wait()
 
         let user3StartEther = await provider.getBalance(user3.address);
         console.log(user3StartEther.toString())
@@ -243,5 +243,16 @@ describe("Transaction test", () => {
         let user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
+    });
+
+    it("daily limit check test", async function() {
+        // In the last test case, wallet1 transferred 11 eth to user3, and in this test case wallet1 transferred 5 eth to user3. This transfer triggered the daily limit.
+        let amount = ethers.utils.parseEther("5")
+        sequenceId = await wallet1.getNextSequenceId()
+        
+        await expect(transactionModule.connect(owner).executeTransaction(
+            wallet1.address,
+            [user3.address, amount, "0x", sequenceId, expireTime]
+        )).to.be.revertedWith("TM:Daily limit reached");
     })
 });
