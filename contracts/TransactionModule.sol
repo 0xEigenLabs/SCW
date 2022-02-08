@@ -12,7 +12,7 @@ contract TransactionModule is BaseModule, Initializable {
         uint largeAmountPayment; // need multi signature if single amount over this
         bool exist;
         uint dailySpendLeft;
-        uint lastWithdrawal;
+        uint lastSpendWindow;
     }
 
     mapping (address => PaymentLimitation) public paymentInfos;
@@ -73,9 +73,9 @@ contract TransactionModule is BaseModule, Initializable {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_args.value <= pl.largeAmountPayment, "TM: Single payment excceed largeAmountPayment");
-        if (block.timestamp >= pl.lastWithdrawal) {
+        if (block.timestamp >= pl.lastSpendWindow) {
             pl.dailySpendLeft = pl.dailyUpbound - _args.value;
-            pl.lastWithdrawal = block.timestamp + 24 hours;
+            pl.lastSpendWindow = block.timestamp + 24 hours;
         } else {
             require(pl.dailySpendLeft >= _args.value, "TM:Daily limit reached");
             pl.dailySpendLeft -= _args.value;
@@ -88,9 +88,9 @@ contract TransactionModule is BaseModule, Initializable {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_value > pl.largeAmountPayment, "TM: Single payment lower than largeAmountPayment");
-        if (block.timestamp >= pl.lastWithdrawal) {
+        if (block.timestamp >= pl.lastSpendWindow) {
             pl.dailySpendLeft = pl.dailyUpbound - _value;
-            pl.lastWithdrawal = block.timestamp + 24 hours;
+            pl.lastSpendWindow = block.timestamp + 24 hours;
         } else {
             require(pl.dailySpendLeft >= _value, "TM:Daily limit reached");
             pl.dailySpendLeft -= _value;

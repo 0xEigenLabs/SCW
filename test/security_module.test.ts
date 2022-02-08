@@ -162,20 +162,18 @@ describe("Module Registry", () => {
 
     it("should revert recovery", async function() {
         let sm = SecurityModule__factory.connect(securityModule.address, user3)
-        try {
-            let amount = 0
-            let iface = new ethers.utils.Interface(SMABI)
-            let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
-            let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
-            let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
-
-            let res = await securityModule.connect(user3).multicall(
-                wallet1.address,
-                [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
-                signatures
-            );
-            throw new Error("unreachable")
-        } catch (e) {}
+        
+        let amount = 0
+        let iface = new ethers.utils.Interface(SMABI)
+        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+        let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+        
+        await expect(securityModule.connect(user3).multicall(
+            wallet1.address,
+            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            signatures
+        )).to.be.revertedWith("SM: must be signer/wallet");
     })
 
     it("should execute recovery", async () => {
@@ -215,15 +213,9 @@ describe("Module Registry", () => {
         tx = await securityModule.connect(user1).lock(wallet1.address)
         await tx.wait()
 
-        try {
-            tx = await securityModule.lock(wallet1.address)
-            throw new Error("unreachable")
-        } catch (e) {}
-
-        try{
-            await securityModule.connect(user1).lock(wallet1.address)
-            throw new Error("unreachable")
-        } catch(e) {}
+        await expect(securityModule.lock(wallet1.address)).to.be.revertedWith("SM: must be signer/wallet");
+        
+        await expect(securityModule.connect(user1).lock(wallet1.address)).to.be.revertedWith("BM: wallet locked");
 
         tx = await securityModule.connect(user1).unlock(wallet1.address)
         await tx.wait()
@@ -270,12 +262,7 @@ describe("Module Registry", () => {
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
 
-        try{
-            tx = await securityModule.connect(user3).addSigner(
-                wallet1.address, user1.address)
-            await tx.wait()
-            throw new Error("unreachable")
-        } catch (e) { console.log(e) }
+        await expect(securityModule.connect(user3).addSigner(wallet1.address, user1.address)).to.be.revertedWith("BM: wallet locked");
 
         //wait for calm-down period
         await delay(lockPeriod * 1000);
