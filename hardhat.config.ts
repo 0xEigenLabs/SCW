@@ -1,6 +1,7 @@
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
+import '@nomiclabs/hardhat-etherscan'
 
 import { task, HardhatUserConfig } from "hardhat/config";
 import { resolve } from "path";
@@ -20,7 +21,21 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 });
 
 module.exports = {
-  solidity: '0.8.3',
+  solidity:{
+    version: '0.8.3',
+    settings: {
+      optimizer: {
+        enabled: true,
+	runs: 200,
+        details: {
+	  yul: true,
+	  yulDetails: {
+	    stackAllocation: true,
+	  }
+	}	
+      }
+    }
+  },
   typechain: {
     outDir: 'typechain',
     target: 'ethers-v5',
@@ -39,4 +54,12 @@ module.exports = {
       gasPrice: 20000000000
     }
   },
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: {
+      ropsten: '8HHE3RBH3MZ29E9I9XYP8VP6D9SQIINUIU'
+    }
+    
+  }
 }
