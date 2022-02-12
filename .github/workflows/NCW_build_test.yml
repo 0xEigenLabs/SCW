@@ -32,7 +32,6 @@ jobs:
           path: node_modules
           key: ${{runner.OS}}-npm-caches-${{ hashFiles('package-lock.json') }}
       - name: Install Dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
         run: npm install --legacy-peer-deps
       - name: Create .env file for test
         run: touch .env && echo "RPC=http://localhost:7545" >.env && echo "DEVNET_PRIVKEY=df3f4d785d117890fab0d34eb1234d410da0899e84794110007a62b405866942" >>.env
