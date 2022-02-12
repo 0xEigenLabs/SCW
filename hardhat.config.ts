@@ -26,7 +26,13 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-	runs: 200, 
+	runs: 200,
+        details: {
+	  yul: true,
+	  yulDetails: {
+	    stackAllocation: true,
+	  }
+	}	
       }
     }
   },
@@ -49,6 +55,11 @@ module.exports = {
     }
   },
   etherscan: {
-	  apiKey: '8HHE3RBH3MZ29E9I9XYP8VP6D9SQIINUIU'
-	}
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: {
+      ropsten: '8HHE3RBH3MZ29E9I9XYP8VP6D9SQIINUIU'
+    }
+    
+  }
 }
