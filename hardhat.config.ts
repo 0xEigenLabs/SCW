@@ -1,6 +1,7 @@
 import '@typechain/hardhat'
 import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
+import '@nomiclabs/hardhat-etherscan'
 
 import { task, HardhatUserConfig } from "hardhat/config";
 import { resolve } from "path";
@@ -39,4 +40,12 @@ module.exports = {
       gasPrice: 20000000000
     }
   },
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: {
+      ropsten: '8HHE3RBH3MZ29E9I9XYP8VP6D9SQIINUIU'
+    }
+    
+  }
 }
