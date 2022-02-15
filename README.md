@@ -3,7 +3,7 @@
 Eigen NCW(Non-custodial Wallet) allows you:
 
 - [x] Use multi-signature to manager your asset
-- [x] Recover any signer by social recovery
+- [x] Recover the owner by social recovery
 - [x] Lockable
 - [x] Payment Limitation
 - [ ] Claim your secret or reputation without privacy breach
