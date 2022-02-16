@@ -46,12 +46,23 @@ module.exports = {
   },
   //defaultNetwork: "dev",
   networks: {
-
     dev: {
       url: process.env['RPC'] || process.exit(-1),
       accounts: [process.env.DEVNET_PRIVKEY],
       gas: 2100000,
       gasPrice: 20000000000
+    },
+    metis: {
+      url: "https://stardust.metis.io/?owner=588",
+      accounts: [process.env.DEVNET_PRIVKEY]
+    },
+    tbsc: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      accounts: [process.env.DEVNET_PRIVKEY]
+    }, 
+    tpolygon: {
+      url: "https://rpc-mumbai.maticvigil.com/",
+      accounts: [process.env.DEVNET_PRIVKEY]
     }
   },
   etherscan: {
@@ -59,7 +70,14 @@ module.exports = {
     // Obtain one at https://etherscan.io/
     apiKey: {
       ropsten: '8HHE3RBH3MZ29E9I9XYP8VP6D9SQIINUIU'
-    }
-    
+    }   
+  },
+  gasReporter: {
+    currency: 'USD',
+    gasPrice: 20,
+    token: 'ETH',
+    gasPriceApi: 'https://api.etherscan.io/api?module=proxy&action=eth_gasPrice',
+    coinmarketcap: 'f6673cc5-a673-4e07-8461-f7281a5de7d7',
+    onlyCalledMethods: false
   }
 }
