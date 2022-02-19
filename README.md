@@ -6,7 +6,7 @@ Eigen NCW(Self-custodial Wallet) allows you:
 - [x] Recover the owner by social recovery
 - [x] Lockable
 - [x] Payment Limitation
-- [-] Claim your secret or reputation without privacy breach, redirecting to [dNFT Protocol](https://github.com/ieigen/dNFTProtocol)
+- [x] Claim your secret or reputation without privacy breach, redirecting to [dNFT Protocol](https://github.com/ieigen/dNFTProtocol)
 
 Implemented by Hardhat and OpenZeppelin, aims to be:
 * Upgradeable and Modular
