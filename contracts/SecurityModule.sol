@@ -46,7 +46,7 @@ contract SecurityModule is BaseModule, Initializable {
         // decode signer info from data
         (address[] memory signers) = abi.decode(data, (address[]));
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
-        // TODO make sure signers is emptry
+        // TODO make sure signers is empty
         for (uint i = 0; i < signers.length; i++) {
             signerConfInfo.signers.push(signers[i]);
             require(signers[i] != IWallet(_wallet).owner(), "SM: signer cann't be owner");
@@ -66,7 +66,7 @@ contract SecurityModule is BaseModule, Initializable {
         IWallet(_wallet).authoriseModule(_module, true, data);
     }
 
-    function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) public onlyOwner(_wallet) {
+    function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
         require(signerConfInfo.exist, "SM: Invalid wallet");
         require(signerConfInfo.lockedPeriod != _lockedSecurityPeriod || signerConfInfo.recoveryPeriod != _recoverySecurityPeriod, "SM:Must change at least one period");
@@ -76,6 +76,8 @@ contract SecurityModule is BaseModule, Initializable {
         if (signerConfInfo.recoveryPeriod != _recoverySecurityPeriod) {
             signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
         }
+        // calm-down period
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.setSecurityPeriod.selector);
     }
 
     function getLockedSecurityPeriod(address _wallet) public view returns (uint) {
@@ -140,7 +142,7 @@ contract SecurityModule is BaseModule, Initializable {
         _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
     }
 
-    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) public onlyOwner(_wallet) {
+    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) external  onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(_newSigner != address(0) && isSigner(_wallet, _oldSigner), "SM: invalid newSigner or invalid oldSigner");
 
@@ -154,10 +156,11 @@ contract SecurityModule is BaseModule, Initializable {
                 i = endIndex;
             }
         }
-        // emit event
+        // calm-down period
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.replaceSigner.selector);
     }
 
-    function removeSigner(address _wallet, address _oldSigner) public onlyOwner(_wallet) {
+    function removeSigner(address _wallet, address _oldSigner) external onlyOwner(_wallet) onlyWhenLocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(isSigner(_wallet, _oldSigner), "SM: invalid oldSigner");
 
@@ -173,7 +176,8 @@ contract SecurityModule is BaseModule, Initializable {
             }
         }
         signerConfInfo.signers.pop();
-        // emit event
+        // calm-down period
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.removeSigner.selector);
     }
 
     // social recovery
@@ -240,10 +244,6 @@ contract SecurityModule is BaseModule, Initializable {
     function unlock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenLocked(_wallet) {
         require(locks[_wallet].locker == SecurityModule.lock.selector, "SM: cannot unlock");
         _setLock(_wallet, 0, bytes4(0));
-    }
-
-    function _setLock(address _wallet, uint256 _releaseAfter, bytes4 _locker) internal {
-        locks[_wallet] = Lock(uint64(_releaseAfter), _locker);
     }
 
     /**

@@ -35,7 +35,7 @@ contract TransactionModule is BaseModule, Initializable {
         pl.exist = true;
     }
 
-    function setTMParametar(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) public onlyOwner(_wallet) {
+    function setTMParametar(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parametar");
@@ -45,6 +45,8 @@ contract TransactionModule is BaseModule, Initializable {
         if (pl.largeAmountPayment != _largeAmountPayment) {
             pl.largeAmountPayment = _largeAmountPayment;
         }
+        // calm-down period
+        _setLock(_wallet, block.timestamp + 48 hours, TransactionModule.setTMParametar.selector);
     }
 
     function getDailyUpbound(address _wallet) public view returns (uint) {
@@ -69,7 +71,7 @@ contract TransactionModule is BaseModule, Initializable {
         IWallet(_wallet).authoriseModule(_module, true, data);
     }
 
-    function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    function executeTransaction(address _wallet, CallArgs memory _args) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_args.value <= pl.largeAmountPayment, "TM: Single payment excceed largeAmountPayment");
@@ -81,6 +83,8 @@ contract TransactionModule is BaseModule, Initializable {
             pl.dailySpendLeft -= _args.value;
         }
         execute(_wallet, _args);
+        // calm-down period
+        _setLock(_wallet, block.timestamp + 1 hours, TransactionModule.executeTransaction.selector);
     }
 
     function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenUnlocked(_wallet) returns (bytes memory _result){

@@ -77,6 +77,7 @@ contract Wallet is IWallet, Initializable {
 
     /**
      * Upgrade model or remove model for wallet
+     * @notice TODO @czl only multiple signature access this. This indicates that SecurityModule is a must
      */
     function authoriseModule(address _module, bool _value, bytes calldata _data) external override onlyOwner {
         if (authorised[_module] != _value) {
@@ -88,6 +89,7 @@ contract Wallet is IWallet, Initializable {
             } else {
                 modules -= 1;
                 require(modules > 0, "BW: cannot remove last module");
+                //TODO @czl clean the wallet from this module
                 delete authorised[_module];
             }
         }

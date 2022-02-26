@@ -29,6 +29,14 @@ abstract contract BaseModule is IModule {
     }
 
     /**
+     * @notice Lock the wallet
+     */
+    function _setLock(address _wallet, uint256 _releaseAfter, bytes4 _locker) internal {
+        locks[_wallet] = Lock(uint64(_releaseAfter), _locker);
+    }
+
+
+    /**
      * Modifier that will check if sender is owner
      */
     modifier onlySelf() {
