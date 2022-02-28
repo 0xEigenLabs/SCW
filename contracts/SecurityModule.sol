@@ -7,12 +7,10 @@ import "./BaseModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
-import "hardhat/console.sol";
-
 contract SecurityModule is BaseModule, Initializable {
     //events
     event SMInited(address _wallet, bytes data);
-    event SMParametarChanged(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod);
+    event SMParameterChanged(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod);
     event SignerAdded(address _wallet, address signer);
     event SignerReplaced(address _wallet, address _newSigner, address _oldSigner);
     event SignerRemoved(address _wallet, address _oldSigner);
@@ -50,7 +48,7 @@ contract SecurityModule is BaseModule, Initializable {
         recoverySecurityPeriod = _recoverySecurityPeriod;
     }
 
-    function init(address _wallet, bytes memory data)  public virtual override onlyWallet(_wallet) {
+    function init(address _wallet, bytes memory data) public override onlyWallet(_wallet) {
         require(!isRegisteredWallet(_wallet), "SM: should not add same module to wallet twice");
         require(!signerConfInfos[_wallet].exist, "SM: wallet exists in signerConfInfos");
 
@@ -69,7 +67,24 @@ contract SecurityModule is BaseModule, Initializable {
         emit SMInited(_wallet, data);
     }
 
-    function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    /**
+     * add new module to wallet
+     * @param _wallet attach module to new module
+     * @param _module attach module
+     */
+    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+        require(registry.isRegisteredModule(_module), "SM: module is not registered");
+        IWallet(_wallet).authoriseModule(_module, true, data);
+    }
+
+    function removeModule(address _wallet) public override onlyWallet(_wallet) {
+        require(signerConfInfos[_wallet].exist, "SM: Invalid wallet");
+
+        removeWallet(_wallet);
+        delete signerConfInfos[_wallet];
+    }
+
+    function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) external onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
         require(signerConfInfo.exist, "SM: Invalid wallet");
         require(signerConfInfo.lockedPeriod != _lockedSecurityPeriod || signerConfInfo.recoveryPeriod != _recoverySecurityPeriod, "SM:Must change at least one period");
@@ -79,7 +94,7 @@ contract SecurityModule is BaseModule, Initializable {
         if (signerConfInfo.recoveryPeriod != _recoverySecurityPeriod) {
             signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
         }
-        emit SMParametarChanged(_wallet, _lockedSecurityPeriod, _recoverySecurityPeriod);
+        emit SMParameterChanged(_wallet, _lockedSecurityPeriod, _recoverySecurityPeriod);
     }
 
     function getLockedSecurityPeriod(address _wallet) public view returns (uint) {
@@ -107,7 +122,7 @@ contract SecurityModule is BaseModule, Initializable {
      * @notice Helper method to check if a wallet is locked.
      * @param _wallet The target wallet.
      */
-    function isLocked(address _wallet) public view returns (bool) {
+    function isLocked(address _wallet) public view returns (uint) {
         return _isLocked(_wallet);
     }
 
@@ -141,12 +156,11 @@ contract SecurityModule is BaseModule, Initializable {
         signerConfInfo.signers.push(signer);
         signerConfInfos[_wallet] = signerConfInfo;
         // calm-down period
-        console.log(SecurityModule.addSigner.selector);
         _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         emit SignerAdded(_wallet, signer);
     }
 
-    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) external  onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    function replaceSigner(address _wallet, address _newSigner, address _oldSigner) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(_newSigner != address(0) && isSigner(_wallet, _oldSigner), "SM: invalid newSigner or invalid oldSigner");
 

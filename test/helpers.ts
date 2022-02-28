@@ -3,8 +3,6 @@ import { BigNumber, utils } from "ethers"
 
 import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
-import { Forwarder__factory } from "../typechain/factories/Forwarder__factory"
-
 const provider = ethers.provider;
 
 export const wait = async (ms: number) => {
@@ -105,10 +103,3 @@ export function toHexString(byteArray) {
     });
     return s;
 }
-
-export const createForwarderFromWallet = async (wallet) => {
-    const forwarderAddress = await exports.getNextContractAddress(wallet.address);
-    let res = await wallet.createForwarder();
-    await res.wait()
-    return await Forwarder__factory.connect(forwarderAddress, provider)
-};

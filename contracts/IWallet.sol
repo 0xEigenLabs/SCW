@@ -34,9 +34,6 @@ interface IWallet {
      */
     function authoriseModule(address _module, bool _value, bytes memory data) external;
 
-
-    function createForwarder() external returns (address);
-
     function invoke(
         address toAddress,
         uint value,

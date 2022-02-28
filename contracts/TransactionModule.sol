@@ -5,12 +5,10 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./BaseModule.sol";
 
-import "hardhat/console.sol";
-
 contract TransactionModule is BaseModule, Initializable {
     // events
-    event TMInited(address _wallet, bytes data);
-    event TMParametarChanged(address _wallet, uint _dailyUpbound, uint _largeAmountPayment);
+    event TMInited(address _walslet, bytes data);
+    event TMParameterChanged(address _wallet, uint _dailyUpbound, uint _largeAmountPayment);
     event ExecuteTransaction(address _wallet, CallArgs _args);
     event ExecuteLargeTransaction(address _wallet, address _to, uint _value, bytes _data);
 
@@ -31,13 +29,6 @@ contract TransactionModule is BaseModule, Initializable {
     }
 
     function init(address _wallet, bytes memory data) public override onlyWallet(_wallet) {
-        console.log("isRegisteredWallet");
-        console.log(_wallet);
-        console.log(wallets.length);
-        for (uint i = 0; i < wallets.length; i++) {
-            console.log(wallets[i]);
-        }
-        console.log(isRegisteredWallet(_wallet));
         require(!isRegisteredWallet(_wallet), "TM: should not add same module to wallet twice");
         require(!paymentInfos[_wallet].exist, "TM: wallet exists in paymentInfos");
         addWallet(_wallet);
@@ -50,25 +41,24 @@ contract TransactionModule is BaseModule, Initializable {
         emit TMInited(_wallet, data);
     }
 
-    function setTMParametar(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    function removeModule(address _wallet) public override onlyWallet(_wallet) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+
+        removeWallet(_wallet);
+        delete paymentInfos[_wallet];
+    }
+
+    function setTMParameter(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) external onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parametar");
+        require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parameter");
         if (pl.dailyUpbound != _dailyUpbound) {
             pl.dailyUpbound = _dailyUpbound;
         }
         if (pl.largeAmountPayment != _largeAmountPayment) {
             pl.largeAmountPayment = _largeAmountPayment;
         }
-        emit TMParametarChanged(_wallet, _dailyUpbound, _largeAmountPayment);
-        console.log("all wallets");
-        for (uint i = 0; i < wallets.length; i++) {
-            console.log(wallets[i]);
-        }
-    }
-
-    function setLockedPeriod(address _wallet, uint _lockedSecurityPeriod) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
-        lockedSecurityPeriod = _lockedSecurityPeriod;
+        emit TMParameterChanged(_wallet, _dailyUpbound, _largeAmountPayment);
     }
 
     function getDailyUpbound(address _wallet) public view returns (uint) {
@@ -83,8 +73,17 @@ contract TransactionModule is BaseModule, Initializable {
         return pl.largeAmountPayment;
     }
 
-    function executeTransaction(address _wallet, CallArgs memory _args) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    /**
+     * add new module to wallet
+     * @param _wallet attach module to new module
+     * @param _module attach module
+     */
+    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+        require(registry.isRegisteredModule(_module), "TM: module is not registered");
+        IWallet(_wallet).authoriseModule(_module, true, data);
+    }
 
+    function executeTransaction(address _wallet, CallArgs memory _args) external onlyOwner(_wallet) onlyWhenNonGloballyLocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_args.value <= pl.largeAmountPayment, "TM: Single payment excceed largeAmountPayment");
@@ -113,7 +112,6 @@ contract TransactionModule is BaseModule, Initializable {
         }
         emit ExecuteLargeTransaction(_wallet, _to, _value, _data);
         bytes memory res = IWallet(_wallet).raw_invoke(_to, _value, _data);
-        console.log(this.executeLargeTransaction.selector);
         _setLock(_wallet, block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
         return res;
     }

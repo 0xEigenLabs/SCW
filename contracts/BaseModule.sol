@@ -5,8 +5,6 @@ import "./IModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
-import "hardhat/console.sol";
-
 abstract contract BaseModule is IModule {
 
     event MultiCalled(address to, uint value, bytes data);
@@ -19,9 +17,19 @@ abstract contract BaseModule is IModule {
         bytes4 locker;
     }
 
-    // bytes4 internal constant signerSelector = bytes4(keccak256(addSigner(address, address)));
-    // bytes4 internal transactionSelector = ;
-    // bytes4 internal globalSelector = ;
+    /*
+     * We classify three kinds of selectors used in _setLock to distinguish different types of locks:
+     * 1.SignerSelector is calculated from SecurityModule.addSigner.selector, representing the locks added by these three functions: 
+     * addSigner, replaceSigner and removeSigner.
+     * 2.TransactionSelector is calculated from TransactionModule.executeLargeTransaction.selector, representing the lock added by executeLargeTransaction.
+     * 3.GlobalSelector is calculated from SecurityModule.lock.selector, representing the lock added by lock.
+     * The difference between 3 and 1&2 is that when users trigger SecurityModule's lock funtion, they want to actively lock, 
+     * but when they triggered addSigner, replaceSigner, removeSigner or executeLargeTransaction, the wallet is locked because 
+     * We don't want users to trigger these actions too often for security reasons.
+     */
+    bytes4 internal constant SignerSelector = 0x2239f556;
+    bytes4 internal constant TransactionSelector = 0x8279b062;
+    bytes4 internal constant GlobalSelector = 0xf435f5a7;
 
     // Wallet specific lock storage
     mapping (address => Lock) internal locks;
@@ -61,7 +69,7 @@ abstract contract BaseModule is IModule {
      * @notice Throws if the wallet is not locked.
      */
     modifier onlyWhenLocked(address _wallet) {
-        require(_isLocked(_wallet), "BM: wallet must be locked");
+        require(_isLocked(_wallet) != 0, "BM: wallet must be locked");
         _;
     }
 
@@ -77,15 +85,33 @@ abstract contract BaseModule is IModule {
      * @notice Helper method to check if a wallet is locked.
      * @param _wallet The target wallet.
      */
-    function _isLocked(address _wallet) internal view returns (bool) {
-        return locks[_wallet].release > uint64(block.timestamp);
+    function _isLocked(address _wallet) internal view returns (uint) {
+        if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == SignerSelector) {
+            // locked by SecurityModule.addSigner/replaceSigner/removeSigner
+            return 1;
+        } else if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == TransactionSelector) {
+            // locked by TransactionModule.executeLargeTransaction
+            return 2;
+        } else if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == GlobalSelector) {
+            // locked by SecurityModule.lock
+            return 3;
+        } 
+        return 0;
     }
 
     /**
      * @notice Throws if the wallet is locked.
      */
     modifier onlyWhenUnlocked(address _wallet) {
-        require(!_isLocked(_wallet), "BM: wallet locked");
+        require(_isLocked(_wallet) == 0, "BM: wallet locked");
+        _;
+    }
+
+    /**
+     * @notice Throws if the wallet is locked globally.
+     */      
+    modifier onlyWhenNonGloballyLocked(address _wallet) {
+        require(_isLocked(_wallet) != 3, "BM:wallet locked globally");
         _;
     }
 
@@ -115,11 +141,7 @@ abstract contract BaseModule is IModule {
     function addWallet(address _wallet) internal {
         // duplicate check
         require(!isRegisteredWallet(_wallet), "BM: wallet already registered");
-        console.log("push before");
-        console.log(wallets.length);
-        wallets.push(_wallet);
-        console.log("push after");
-        console.log(wallets.length);    
+        wallets.push(_wallet); 
     }
 
     function removeWallet(address _wallet) internal {

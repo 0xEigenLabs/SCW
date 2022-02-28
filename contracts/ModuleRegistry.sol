@@ -5,6 +5,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IModuleRegistry.sol";
 
 contract ModuleRegistry is Ownable, IModuleRegistry{
+    // events
+    event ModuleRegistered(address _module, bytes32 _name);
+    event ModuleDeRegistered(address _module);
 
     mapping (address => Meta) internal modules;
     struct Meta {
@@ -20,7 +23,7 @@ contract ModuleRegistry is Ownable, IModuleRegistry{
     function registerModule(address _module, bytes32 _name) external override onlyOwner {
         require(!modules[_module].exists, "MR: module already exists");
         modules[_module] = Meta({exists: true, name: _name});
-        //emit ModuleRegistered(_module, _name);
+        emit ModuleRegistered(_module, _name);
     }
 
     /**
@@ -30,7 +33,7 @@ contract ModuleRegistry is Ownable, IModuleRegistry{
     function deregisterModule(address _module) external override onlyOwner {
         require(modules[_module].exists, "MR: module does not exist");
         delete modules[_module];
-        //emit ModuleDeRegistered(_module);
+        emit ModuleDeRegistered(_module);
     }
 
     /**
