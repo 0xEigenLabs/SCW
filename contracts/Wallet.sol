@@ -8,6 +8,8 @@ import "./Forwarder.sol";
 import "./BaseModule.sol";
 import "./IWallet.sol";
 
+import "hardhat/console.sol";
+
 contract Wallet is IWallet, Initializable {
     // Events
     event Deposited(address from, uint value, bytes data);
@@ -16,6 +18,7 @@ contract Wallet is IWallet, Initializable {
     event Received(uint indexed value, address indexed sender, bytes data);
     event Invoked(address from, address to, uint value, bytes data);
     event RawInvoked(address from, address to, uint value, bytes data);
+    event OwnerReplaced(address _newOwner);
 
     // Public fields
     address public override owner;
@@ -67,6 +70,8 @@ contract Wallet is IWallet, Initializable {
         for (uint256 i = 0; i < _modules.length; i++) {
             require(authorised[_modules[i]] == false, "Module is already added");
             authorised[_modules[i]] = true;
+            console.log("initialize");
+            console.log(address(this));
             IModule(_modules[i]).init(address(this), _data[i]);  // uncomment will make test/proxy.test.ts failed
             emit AuthorisedModule(_modules[i], true);
         }
@@ -85,6 +90,8 @@ contract Wallet is IWallet, Initializable {
             if (_value == true) {
                 modules += 1;
                 authorised[_module] = true;
+                console.log("authoriseModule");
+                console.log(address(this));
                 IModule(_module).init(address(this), _data);
             } else {
                 modules -= 1;
@@ -98,6 +105,7 @@ contract Wallet is IWallet, Initializable {
     function replaceOwner(address _newOwner) external override onlyModule {
         require(_newOwner != address(0), "W: invalid newOwner");
         owner = _newOwner;
+        emit OwnerReplaced(_newOwner);
     }
 
     /**

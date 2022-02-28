@@ -7,10 +7,22 @@ import "./BaseModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
-contract SecurityModule is BaseModule, Initializable {
+import "hardhat/console.sol";
 
-    uint public lockedSecurityPeriod;
-    uint public recoverySecurityPeriod;
+contract SecurityModule is BaseModule, Initializable {
+    //events
+    event SMInited(address _wallet, bytes data);
+    event SMParametarChanged(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod);
+    event SignerAdded(address _wallet, address signer);
+    event SignerReplaced(address _wallet, address _newSigner, address _oldSigner);
+    event SignerRemoved(address _wallet, address _oldSigner);
+    event RecoveryTriggered(address _wallet, address _recovery);
+    event RecoveryCancelled(address _wallet);
+    event RecoveryExecuted(address _wallet);
+    event Locked(address _wallet);
+    event Unlocked(address _wallet);
+
+    uint public recoverySecurityPeriod;  
 
     struct Recovery {
         uint activeAt; // timestamp for activation of escape mode, 0 otherwise
@@ -38,7 +50,7 @@ contract SecurityModule is BaseModule, Initializable {
         recoverySecurityPeriod = _recoverySecurityPeriod;
     }
 
-    function init(address _wallet, bytes memory data)  public override onlyWallet(_wallet) {
+    function init(address _wallet, bytes memory data)  public virtual override onlyWallet(_wallet) {
         require(!isRegisteredWallet(_wallet), "SM: should not add same module to wallet twice");
         require(!signerConfInfos[_wallet].exist, "SM: wallet exists in signerConfInfos");
 
@@ -54,16 +66,7 @@ contract SecurityModule is BaseModule, Initializable {
         signerConfInfo.exist = true;
         signerConfInfo.lockedPeriod = lockedSecurityPeriod;
         signerConfInfo.recoveryPeriod = recoverySecurityPeriod;
-    }
-
-    /**
-     * add new module to wallet
-     * @param _wallet attach module to new module
-     * @param _module attach module
-     */
-    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
-        require(registry.isRegisteredModule(_module), "SM: module is not registered");
-        IWallet(_wallet).authoriseModule(_module, true, data);
+        emit SMInited(_wallet, data);
     }
 
     function setSecurityPeriod(address _wallet, uint _lockedSecurityPeriod, uint _recoverySecurityPeriod) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
@@ -76,8 +79,7 @@ contract SecurityModule is BaseModule, Initializable {
         if (signerConfInfo.recoveryPeriod != _recoverySecurityPeriod) {
             signerConfInfo.recoveryPeriod = _recoverySecurityPeriod;
         }
-        // calm-down period
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.setSecurityPeriod.selector);
+        emit SMParametarChanged(_wallet, _lockedSecurityPeriod, _recoverySecurityPeriod);
     }
 
     function getLockedSecurityPeriod(address _wallet) public view returns (uint) {
@@ -139,7 +141,9 @@ contract SecurityModule is BaseModule, Initializable {
         signerConfInfo.signers.push(signer);
         signerConfInfos[_wallet] = signerConfInfo;
         // calm-down period
+        console.log(SecurityModule.addSigner.selector);
         _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        emit SignerAdded(_wallet, signer);
     }
 
     function replaceSigner(address _wallet, address _newSigner, address _oldSigner) external  onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
@@ -156,11 +160,12 @@ contract SecurityModule is BaseModule, Initializable {
                 i = endIndex;
             }
         }
-        // calm-down period
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.replaceSigner.selector);
+        // calm-down period. Note that we use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        emit SignerReplaced(_wallet, _newSigner, _oldSigner);
     }
 
-    function removeSigner(address _wallet, address _oldSigner) external onlyOwner(_wallet) onlyWhenLocked(_wallet) {
+    function removeSigner(address _wallet, address _oldSigner) external onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
         require(isRegisteredWallet(_wallet), "SM: wallet should be registered before adding signers");
         require(isSigner(_wallet, _oldSigner), "SM: invalid oldSigner");
 
@@ -176,8 +181,9 @@ contract SecurityModule is BaseModule, Initializable {
             }
         }
         signerConfInfo.signers.pop();
-        // calm-down period
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.removeSigner.selector);
+        // calm-down period. Note that we use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
+        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        emit SignerRemoved(_wallet, _oldSigner);
     }
 
     // social recovery
@@ -206,6 +212,7 @@ contract SecurityModule is BaseModule, Initializable {
             activeAt: expiry,
             recovery: _recovery
         });
+        emit RecoveryTriggered(_wallet, _recovery);
     }
 
     function cancelRecovery(address _wallet) external onlyWallet(_wallet) {
@@ -213,6 +220,7 @@ contract SecurityModule is BaseModule, Initializable {
         require(isInRecovery(_wallet), "SM: not recovering");
         delete recoveries[_wallet];
         _setLock(_wallet, 0, bytes4(0));
+        emit RecoveryCancelled(_wallet);
     }
 
     function executeRecovery(address _wallet) public {
@@ -226,6 +234,7 @@ contract SecurityModule is BaseModule, Initializable {
 
         delete recoveries[_wallet];
         _setLock(_wallet, 0, bytes4(0));
+        emit RecoveryExecuted(_wallet);
     }
 
     /**
@@ -235,6 +244,7 @@ contract SecurityModule is BaseModule, Initializable {
     function lock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenUnlocked(_wallet) {
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
         _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.lock.selector);
+        emit Locked(_wallet);
     }
 
     /**
@@ -244,6 +254,7 @@ contract SecurityModule is BaseModule, Initializable {
     function unlock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenLocked(_wallet) {
         require(locks[_wallet].locker == SecurityModule.lock.selector, "SM: cannot unlock");
         _setLock(_wallet, 0, bytes4(0));
+        emit Unlocked(_wallet);
     }
 
     /**

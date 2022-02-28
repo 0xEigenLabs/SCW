@@ -36,9 +36,10 @@ const TMABI = [
     "function executeLargeTransaction(address, address, uint, bytes)"
 ]
 
-let lockPeriod = 10 //s
+let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
 let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800; // 60 seconds
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Transaction test", () => {
     before(async () => {
@@ -149,7 +150,7 @@ describe("Transaction test", () => {
         expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
     })
 
-    it("change transaction module's daily upbound or large amount payment", async function() {
+    it.only("change transaction module's daily upbound or large amount payment", async function() {
         let du = await transactionModule.getDailyUpbound(wallet1.address)
         let lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("15"))
@@ -160,6 +161,9 @@ describe("Transaction test", () => {
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("14"))
         expect(lap).eq(ethers.utils.parseEther("9"))
+
+        // wait for calm-down period
+        await delay(lockPeriod * 1000);
         
         await (await transactionModule.connect(owner).setTMParametar(wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
@@ -182,6 +186,9 @@ describe("Transaction test", () => {
             [user3.address, amount, "0x", sequenceId, expireTime]
         );
         await res.wait()
+
+        // wait for calm-down period
+        await delay(lockPeriod * 1000);
         
         let user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
@@ -213,6 +220,9 @@ describe("Transaction test", () => {
             [testToken.address, 0, txData, sequenceId, expireTime]
         );
         await res.wait()
+
+        // wait for calm-down period
+        await delay(lockPeriod * 1000);
         
         let user3EndBalance = (await user3Contract.balanceOf(user3.address))
         console.log("user3EndBalance ", user3EndBalance.toString())

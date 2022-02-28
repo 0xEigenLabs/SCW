@@ -116,6 +116,9 @@ describe("Module Registry", () => {
         rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
         expect(lp).eq(4)
         expect(rp).eq(119)
+
+        // wait for calm-down period
+        await delay(lockPeriod * 1000);
         
         await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 5, 120)).wait()
         lp = await securityModule.getLockedSecurityPeriod(wallet1.address)

@@ -5,6 +5,8 @@ import "./IModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
+import "hardhat/console.sol";
+
 abstract contract BaseModule is IModule {
 
     event MultiCalled(address to, uint value, bytes data);
@@ -17,6 +19,10 @@ abstract contract BaseModule is IModule {
         bytes4 locker;
     }
 
+    // bytes4 internal constant signerSelector = bytes4(keccak256(addSigner(address, address)));
+    // bytes4 internal transactionSelector = ;
+    // bytes4 internal globalSelector = ;
+
     // Wallet specific lock storage
     mapping (address => Lock) internal locks;
 
@@ -27,6 +33,9 @@ abstract contract BaseModule is IModule {
         uint sequenceId;
         uint expireTime;
     }
+
+    // default value of lockedPeriod, used for the inherited modules when they need to setlock
+    uint internal lockedSecurityPeriod;
 
     /**
      * @notice Lock the wallet
@@ -81,7 +90,7 @@ abstract contract BaseModule is IModule {
     }
 
     function isRegisteredWallet(address _wallet) internal view returns (bool){
-        for (uint i = 0; i < wallets.length; i ++) {
+        for (uint i = 0; i < wallets.length; i++) {
             if ( wallets[i] == _wallet ) {
                 return true;
             }
@@ -104,7 +113,13 @@ abstract contract BaseModule is IModule {
     }
 
     function addWallet(address _wallet) internal {
+        // duplicate check
+        require(!isRegisteredWallet(_wallet), "BM: wallet already registered");
+        console.log("push before");
+        console.log(wallets.length);
         wallets.push(_wallet);
+        console.log("push after");
+        console.log(wallets.length);    
     }
 
     function removeWallet(address _wallet) internal {
