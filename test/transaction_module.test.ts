@@ -35,10 +35,7 @@ const TMABI = [
     "function executeTransaction(address)",
     "function executeLargeTransaction(address, address, uint, bytes)",
     "function setTMParameter(address, uint, uint)",
-    "function addModule(address, address, bytes)"
-]
-const WalletABI = [
-    "function authoriseModule(address, bool, bytes)"
+    "function addModule(address, address, address, bytes)"
 ]
 
 let lockPeriod = 5 //s
@@ -142,11 +139,11 @@ describe("Transaction test", () => {
 
         let amount = 0
         let iface = new ethers.utils.Interface(TMABI)
-        let data = iface.encodeFunctionData("addModule", [wallet1.address, transactionModule.address, tmData])
+        let data = iface.encodeFunctionData("addModule", [moduleRegistry.address, wallet1.address, transactionModule.address, tmData])
         sequenceId = await wallet1.getNextSequenceId()
         let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
-
+        
         // When authorising module, you need to call multi-signature.
         res = await securityModule.connect(owner).multicall(
             wallet1.address,

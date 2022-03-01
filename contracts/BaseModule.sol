@@ -86,15 +86,17 @@ abstract contract BaseModule is IModule {
      * @param _wallet The target wallet.
      */
     function _isLocked(address _wallet) internal view returns (uint) {
-        if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == SignerSelector) {
-            // locked by SecurityModule.addSigner/replaceSigner/removeSigner
-            return 1;
-        } else if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == TransactionSelector) {
-            // locked by TransactionModule.executeLargeTransaction
-            return 2;
-        } else if (locks[_wallet].release > uint64(block.timestamp) && locks[_wallet].locker == GlobalSelector) {
-            // locked by SecurityModule.lock
-            return 3;
+        if (locks[_wallet].release > uint64(block.timestamp)) {
+            if (locks[_wallet].locker == SignerSelector) {
+                // locked by SecurityModule.addSigner/replaceSigner/removeSigner
+                return 1;
+            } else if (locks[_wallet].locker == TransactionSelector) {
+                // locked by TransactionModule.executeLargeTransaction
+                return 2;
+            } else {
+                // locked by SecurityModule.lock
+                return 3;
+            }
         } 
         return 0;
     }

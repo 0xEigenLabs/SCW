@@ -6,8 +6,7 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import "./BaseModule.sol";
 import "./IWallet.sol";
-
-import "hardhat/console.sol";
+import "./IModuleRegistry.sol";
 
 contract Wallet is IWallet, Initializable {
     // Events
@@ -41,6 +40,11 @@ contract Wallet is IWallet, Initializable {
         require(authorised[msg.sender] || msg.sender == owner, "W: must be owner or module");
         _;
     } 
+
+    modifier onlyRegisteredModule(address _moduleRegistry) {
+        require(IModuleRegistry(_moduleRegistry).isRegisteredModule(msg.sender), "W: module is not registered");
+        _;
+    }
 
     /**
      * Modifier that will check if sender is owner
@@ -88,7 +92,7 @@ contract Wallet is IWallet, Initializable {
     /**
      * Upgrade model or remove model for wallet
      */
-    function authoriseModule(address _module, bool _value, bytes calldata _data) external override {
+    function authoriseModule(address _moduleRegistry, address _module, bool _value, bytes calldata _data) external override onlyRegisteredModule(_moduleRegistry) {
         if (authorised[_module] != _value) {
             emit AuthorisedModule(_module, _value);
             if (_value == true) {
@@ -98,9 +102,9 @@ contract Wallet is IWallet, Initializable {
             } else {
                 modules -= 1;
                 require(modules > 0, "BW: cannot remove last module");
-                delete authorised[_module];
                 IModule instanceModule = IModule(_module);
                 instanceModule.removeModule(address(this));
+                delete authorised[_module];    
             }
         }
     }

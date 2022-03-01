@@ -78,9 +78,9 @@ contract TransactionModule is BaseModule, Initializable {
      * @param _wallet attach module to new module
      * @param _module attach module
      */
-    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+    function addModule(address _moduleRegistry, address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         require(registry.isRegisteredModule(_module), "TM: module is not registered");
-        IWallet(_wallet).authoriseModule(_module, true, data);
+        IWallet(_wallet).authoriseModule(_moduleRegistry, _module, true, data);
     }
 
     function executeTransaction(address _wallet, CallArgs memory _args) external onlyOwner(_wallet) onlyWhenNonGloballyLocked(_wallet) {

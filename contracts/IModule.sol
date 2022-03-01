@@ -4,5 +4,5 @@ pragma solidity ^0.8.0;
 interface IModule {
     function init(address _wallet, bytes memory _data) external;
     function removeModule(address _wallet) external;
-    function addModule(address _wallet, address _module, bytes calldata _data) external;
+    function addModule(address _moduleRegistry, address _wallet, address _module, bytes calldata _data) external;
 }

@@ -32,7 +32,7 @@ interface IWallet {
      * @param _module The target module.
      * @param _value Set to `true` to authorise the module.
      */
-    function authoriseModule(address _module, bool _value, bytes memory data) external;
+    function authoriseModule(address _moduleRegistry, address _module, bool _value, bytes memory data) external;
 
     function invoke(
         address toAddress,
