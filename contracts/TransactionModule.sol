@@ -6,6 +6,11 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./BaseModule.sol";
 
 contract TransactionModule is BaseModule, Initializable {
+    // events
+    event TMInited(address _walslet, bytes data);
+    event TMParameterChanged(address _wallet, uint _dailyUpbound, uint _largeAmountPayment);
+    event ExecuteTransaction(address _wallet, CallArgs _args);
+    event ExecuteLargeTransaction(address _wallet, address _to, uint _value, bytes _data);
 
     struct PaymentLimitation {
         uint dailyUpbound; // need multi signature if total amount over this
@@ -33,18 +38,27 @@ contract TransactionModule is BaseModule, Initializable {
         pl.dailyUpbound = _dailyUpbound;
         pl.largeAmountPayment = _largeAmountPayment;
         pl.exist = true;
+        emit TMInited(_wallet, data);
     }
 
-    function setTMParametar(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) public onlyOwner(_wallet) {
+    function removeModule(address _wallet) public override onlyWallet(_wallet) {
+        require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
+
+        removeWallet(_wallet);
+        delete paymentInfos[_wallet];
+    }
+
+    function setTMParameter(address _wallet, uint _dailyUpbound, uint _largeAmountPayment) external onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
-        require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parametar");
+        require(pl.dailyUpbound != _dailyUpbound || pl.largeAmountPayment != _largeAmountPayment, "TM:must change at least one parameter");
         if (pl.dailyUpbound != _dailyUpbound) {
             pl.dailyUpbound = _dailyUpbound;
         }
         if (pl.largeAmountPayment != _largeAmountPayment) {
             pl.largeAmountPayment = _largeAmountPayment;
         }
+        emit TMParameterChanged(_wallet, _dailyUpbound, _largeAmountPayment);
     }
 
     function getDailyUpbound(address _wallet) public view returns (uint) {
@@ -64,12 +78,12 @@ contract TransactionModule is BaseModule, Initializable {
      * @param _wallet attach module to new module
      * @param _module attach module
      */
-    function addModule(address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
-        require(registry.isRegisteredModule(_module), "SM: module is not registered");
-        IWallet(_wallet).authoriseModule(_module, true, data);
+    function addModule(address _moduleRegistry, address _wallet, address _module, bytes calldata data) external virtual override onlyWallet(_wallet) onlyWhenUnlocked(_wallet) {
+        require(registry.isRegisteredModule(_module), "TM: module is not registered");
+        IWallet(_wallet).authoriseModule(_moduleRegistry, _module, true, data);
     }
 
-    function executeTransaction(address _wallet, CallArgs memory _args) public onlyOwner(_wallet) onlyWhenUnlocked(_wallet) {
+    function executeTransaction(address _wallet, CallArgs memory _args) external onlyOwner(_wallet) onlyWhenNonGloballyLocked(_wallet) {
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
         require(_args.value <= pl.largeAmountPayment, "TM: Single payment excceed largeAmountPayment");
@@ -81,6 +95,7 @@ contract TransactionModule is BaseModule, Initializable {
             pl.dailySpendLeft -= _args.value;
         }
         execute(_wallet, _args);
+        emit ExecuteTransaction(_wallet, _args);
     }
 
     function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenUnlocked(_wallet) returns (bytes memory _result){
@@ -95,6 +110,9 @@ contract TransactionModule is BaseModule, Initializable {
             require(pl.dailySpendLeft >= _value, "TM:Daily limit reached");
             pl.dailySpendLeft -= _value;
         }
-        return IWallet(_wallet).raw_invoke(_to, _value, _data);
+        emit ExecuteLargeTransaction(_wallet, _to, _value, _data);
+        bytes memory res = IWallet(_wallet).raw_invoke(_to, _value, _data);
+        _setLock(_wallet, block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
+        return res;
     }
 }

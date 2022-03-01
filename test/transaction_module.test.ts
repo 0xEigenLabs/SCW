@@ -33,12 +33,15 @@ let sequenceId
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const TMABI = [
     "function executeTransaction(address)",
-    "function executeLargeTransaction(address, address, uint, bytes)"
+    "function executeLargeTransaction(address, address, uint, bytes)",
+    "function setTMParameter(address, uint, uint)",
+    "function addModule(address, address, address, bytes)"
 ]
 
-let lockPeriod = 10 //s
+let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
 let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800; // 60 seconds
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Transaction test", () => {
     before(async () => {
@@ -127,14 +130,30 @@ describe("Transaction test", () => {
         // 2:Call the wallet's authoriseModule method.
         await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("1.2")})).wait()
         let encoder = ethers.utils.defaultAbiCoder
-        // You must initialize the wallet with at least one module.
+        // You must initialize the wallet with at least one module.And if you want to authorise another module, you need to call multi-signature, which means securityModule is a must.
         await (await wallet1.initialize([securityModule.address], [encoder.encode(["address[]"], [[user1.address, user2.address]])])).wait()
 
         let du = ethers.utils.parseEther("15")
         let lap = ethers.utils.parseEther("10")
         let tmData = encoder.encode(["uint", "uint"], [du, lap])
-        let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
-        await res2.wait()
+
+        let amount = 0
+        let iface = new ethers.utils.Interface(TMABI)
+        let data = iface.encodeFunctionData("addModule", [moduleRegistry.address, wallet1.address, transactionModule.address, tmData])
+        sequenceId = await wallet1.getNextSequenceId()
+        let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+        
+        // When authorising module, you need to call multi-signature.
+        res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [transactionModule.address, amount, data, sequenceId, expireTime],
+            signatures
+        );
+        await res.wait()
+
+        // let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
+        // await res2.wait()
         console.log("Wallet created", wallet1.address) 
     })
 
@@ -155,13 +174,42 @@ describe("Transaction test", () => {
         expect(du).eq(ethers.utils.parseEther("15"))
         expect(lap).eq(ethers.utils.parseEther("10"))
 
-        await (await transactionModule.connect(owner).setTMParametar(wallet1.address, ethers.utils.parseEther("14"), ethers.utils.parseEther("9"))).wait()
+        // change transaction parameters
+        let amount = 0
+        let iface = new ethers.utils.Interface(TMABI)
+        let data = iface.encodeFunctionData("setTMParameter", [wallet1.address, ethers.utils.parseEther("14"), ethers.utils.parseEther("9")])
+        let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        // When modifying security parameters, you need to call multi-signature.
+        let res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [transactionModule.address, amount, data, sequenceId, expireTime],
+            signatures
+        );
+        await res.wait()
+
+        // await (await transactionModule.connect(owner).setTMParameter(wallet1.address, ethers.utils.parseEther("14"), ethers.utils.parseEther("9"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("14"))
         expect(lap).eq(ethers.utils.parseEther("9"))
+
+        // change back
+        iface = new ethers.utils.Interface(TMABI)
+        data = iface.encodeFunctionData("setTMParameter", [wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10")])
+        sequenceId = await wallet1.getNextSequenceId()
+        hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
+        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [transactionModule.address, amount, data, sequenceId, expireTime],
+            signatures
+        );
+        await res.wait()
         
-        await (await transactionModule.connect(owner).setTMParametar(wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10"))).wait()
+        // await (await transactionModule.connect(owner).setTMParameter(wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("15"))
@@ -181,7 +229,7 @@ describe("Transaction test", () => {
             wallet1.address,
             [user3.address, amount, "0x", sequenceId, expireTime]
         );
-        await res.wait()
+        await res.wait();
         
         let user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
@@ -213,7 +261,7 @@ describe("Transaction test", () => {
             [testToken.address, 0, txData, sequenceId, expireTime]
         );
         await res.wait()
-        
+
         let user3EndBalance = (await user3Contract.balanceOf(user3.address))
         console.log("user3EndBalance ", user3EndBalance.toString())
         expect(user3EndBalance).eq(user3StartBalance.add(amount))

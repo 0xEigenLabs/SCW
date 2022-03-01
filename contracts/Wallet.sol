@@ -4,9 +4,9 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
-import "./Forwarder.sol";
 import "./BaseModule.sol";
 import "./IWallet.sol";
+import "./IModuleRegistry.sol";
 
 contract Wallet is IWallet, Initializable {
     // Events
@@ -16,6 +16,7 @@ contract Wallet is IWallet, Initializable {
     event Received(uint indexed value, address indexed sender, bytes data);
     event Invoked(address from, address to, uint value, bytes data);
     event RawInvoked(address from, address to, uint value, bytes data);
+    event OwnerReplaced(address _newOwner);
 
     // Public fields
     address public override owner;
@@ -39,6 +40,19 @@ contract Wallet is IWallet, Initializable {
         require(authorised[msg.sender] || msg.sender == owner, "W: must be owner or module");
         _;
     } 
+
+    modifier onlyRegisteredModule(address _moduleRegistry) {
+        require(IModuleRegistry(_moduleRegistry).isRegisteredModule(msg.sender), "W: module is not registered");
+        _;
+    }
+
+    /**
+     * Modifier that will check if sender is owner
+     */
+    modifier onlySelf() {
+        require(msg.sender == address(this), "only self");
+        _;
+    }
 
     modifier onlyOwner {
         require(msg.sender == owner, "W: must be owner");
@@ -78,7 +92,7 @@ contract Wallet is IWallet, Initializable {
     /**
      * Upgrade model or remove model for wallet
      */
-    function authoriseModule(address _module, bool _value, bytes calldata _data) external override onlyOwner {
+    function authoriseModule(address _moduleRegistry, address _module, bool _value, bytes calldata _data) external override onlyRegisteredModule(_moduleRegistry) {
         if (authorised[_module] != _value) {
             emit AuthorisedModule(_module, _value);
             if (_value == true) {
@@ -88,7 +102,9 @@ contract Wallet is IWallet, Initializable {
             } else {
                 modules -= 1;
                 require(modules > 0, "BW: cannot remove last module");
-                delete authorised[_module];
+                IModule instanceModule = IModule(_module);
+                instanceModule.removeModule(address(this));
+                delete authorised[_module];    
             }
         }
     }
@@ -96,6 +112,7 @@ contract Wallet is IWallet, Initializable {
     function replaceOwner(address _newOwner) external override onlyModule {
         require(_newOwner != address(0), "W: invalid newOwner");
         owner = _newOwner;
+        emit OwnerReplaced(_newOwner);
     }
 
     /**
@@ -106,14 +123,6 @@ contract Wallet is IWallet, Initializable {
             // Fire deposited event if we are receiving funds
             emit Deposited(msg.sender, msg.value, msg.data);
         }
-    }
-
-    /**
-     * Create a new contract (and also address) that forwards funds to this contract
-     * returns address of newly created forwarder address
-     */
-    function createForwarder() public override returns (address) {
-        return address(new Forwarder());
     }
 
     /**

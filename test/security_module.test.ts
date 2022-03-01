@@ -28,7 +28,8 @@ const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
     "function executeRecovery(address)",
     "function cancelRecovery(address)",
-    "function triggerRecovery(address, address)"
+    "function triggerRecovery(address, address)",
+    "function setSecurityPeriod(address, uint, uint)"
 ]
 
 let lockPeriod = 5 //s
@@ -111,13 +112,42 @@ describe("Module Registry", () => {
         expect(lp).eq(5)
         expect(rp).eq(120)
 
-        await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 4, 119)).wait()
+        // change security parameters
+        let amount = 0
+        let iface = new ethers.utils.Interface(SMABI)
+        let data = iface.encodeFunctionData("setSecurityPeriod", [wallet1.address, 4, 119])
+        let hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        // When modifying security parameters, you need to call multi-signature.
+        let res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [securityModule.address, amount, data, sequenceId, expireTime],
+            signatures
+        );
+        await res.wait()
         lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
         rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
         expect(lp).eq(4)
         expect(rp).eq(119)
+
+        // wait for calm-down period
+        await delay(lockPeriod * 1000);
         
-        await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 5, 120)).wait()
+        // change back
+        iface = new ethers.utils.Interface(SMABI)
+        data = iface.encodeFunctionData("setSecurityPeriod", [wallet1.address, 5, 120])
+        sequenceId = await wallet1.getNextSequenceId()
+        hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
+        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        res = await securityModule.connect(owner).multicall(
+            wallet1.address,
+            [securityModule.address, amount, data, sequenceId, expireTime],
+            signatures
+        );
+        await res.wait()
+        //await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 5, 120)).wait()
         lp = await securityModule.getLockedSecurityPeriod(wallet1.address)
         rp = await securityModule.getRecoverySecurityPeriod(wallet1.address)
         expect(lp).eq(5)
@@ -129,13 +159,13 @@ describe("Module Registry", () => {
 
         let amount = 0
         let iface = new ethers.utils.Interface(SMABI)
-        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
-        let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let data = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+        let hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            [securityModule.address, amount, data, sequenceId, expireTime],
             signatures
         );
         await res.wait()
@@ -145,13 +175,13 @@ describe("Module Registry", () => {
         sequenceId = await wallet1.getNextSequenceId()
 
         iface = new ethers.utils.Interface(SMABI)
-        replaceOwnerData = iface.encodeFunctionData("cancelRecovery", [wallet1.address])
-        hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        data = iface.encodeFunctionData("cancelRecovery", [wallet1.address])
+        hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
         signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
         res = await securityModule.connect(owner).multicall(
             wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            [securityModule.address, amount, data, sequenceId, expireTime],
             signatures
         );
         await res.wait()
@@ -161,17 +191,15 @@ describe("Module Registry", () => {
     });
 
     it("should revert recovery", async function() {
-        let sm = SecurityModule__factory.connect(securityModule.address, user3)
-        
         let amount = 0
         let iface = new ethers.utils.Interface(SMABI)
-        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
-        let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let data = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+        let hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
         
         await expect(securityModule.connect(user3).multicall(
             wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            [securityModule.address, amount, data, sequenceId, expireTime],
             signatures
         )).to.be.revertedWith("SM: must be signer/wallet");
     })
@@ -190,13 +218,13 @@ describe("Module Registry", () => {
 
         let amount = 0
         let iface = new ethers.utils.Interface(SMABI)
-        let replaceOwnerData = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
-        let hash = await helpers.signHash(securityModule.address, amount, replaceOwnerData, /*expireTime,*/ sequenceId)
+        let data = iface.encodeFunctionData("triggerRecovery", [wallet1.address, user3.address])
+        let hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
         let res = await securityModule.connect(owner).multicall(
             wallet1.address,
-            [securityModule.address, amount, replaceOwnerData, sequenceId, expireTime],
+            [securityModule.address, amount, data, sequenceId, expireTime],
             signatures
         );
         await res.wait()
@@ -209,8 +237,7 @@ describe("Module Registry", () => {
     })
 
     it("should lock", async() => {
-        let tx
-        tx = await securityModule.connect(user1).lock(wallet1.address)
+        let tx = await securityModule.connect(user1).lock(wallet1.address)
         await tx.wait()
 
         await expect(securityModule.lock(wallet1.address)).to.be.revertedWith("SM: must be signer/wallet");
@@ -230,6 +257,10 @@ describe("Module Registry", () => {
         let tx = await securityModule.connect(user3).replaceSigner(
             wallet1.address, owner.address, user1.address)
         await tx.wait()
+
+        //wait for calm-down period
+        await delay(lockPeriod * 1000);
+
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
@@ -244,6 +275,10 @@ describe("Module Registry", () => {
         let tx = await securityModule.connect(user3).removeSigner(
             wallet1.address, user2.address)
         await tx.wait()
+
+        //wait for calm-down period
+        await delay(lockPeriod * 1000);
+
         res1 = await securityModule.isSigner(wallet1.address, user1.address);
         expect(res1).eq(false)
         res1 = await securityModule.isSigner(wallet1.address, user2.address);
