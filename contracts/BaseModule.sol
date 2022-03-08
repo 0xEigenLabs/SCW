@@ -10,12 +10,6 @@ abstract contract BaseModule is IModule {
     event MultiCalled(address to, uint value, bytes data);
     IModuleRegistry internal registry;
     address[] internal wallets;
-    struct Lock {
-        // the lock's release timestamp
-        uint64 release;
-        // the signature of the method that set the last lock
-        bytes4 locker;
-    }
 
     /*
      * We classify three kinds of selectors used in _setLock to distinguish different types of locks:
@@ -31,8 +25,7 @@ abstract contract BaseModule is IModule {
     bytes4 internal constant TransactionSelector = 0x8279b062;
     bytes4 internal constant GlobalSelector = 0xf435f5a7;
 
-    // Wallet specific lock storage
-    mapping (address => Lock) internal locks;
+    mapping (address => mapping (bytes4 => uint64)) internal locks;
 
     struct CallArgs {
         address to;
@@ -49,7 +42,7 @@ abstract contract BaseModule is IModule {
      * @notice Lock the wallet
      */
     function _setLock(address _wallet, uint256 _releaseAfter, bytes4 _locker) internal {
-        locks[_wallet] = Lock(uint64(_releaseAfter), _locker);
+        locks[_wallet][_locker] = uint64(_releaseAfter);
     }
 
 
@@ -74,6 +67,14 @@ abstract contract BaseModule is IModule {
     }
 
     /**
+     * @notice Throws if the wallet is not globally locked.
+     */
+    modifier onlyWhenGloballyLocked(address _wallet) {
+        require(locks[_wallet][GlobalSelector] > uint64(block.timestamp), "BM: wallet must be globally locked");
+        _;
+    }
+
+    /**
      * @dev Throws if the sender is not the target wallet of the call.
      */
     modifier onlyWallet(address _wallet) {
@@ -82,23 +83,23 @@ abstract contract BaseModule is IModule {
     }
 
     /**
-     * @notice Helper method to check if a wallet is locked.
+     * @notice Helper method to check the wallet's lock situation.
+     * Refer to the permission flag of linux => 
+     * 4: locked by signer related operation 
+     * 2: locked by large tx operation 
+     * 1: locked globally
      * @param _wallet The target wallet.
      */
     function _isLocked(address _wallet) internal view returns (uint) {
-        if (locks[_wallet].release > uint64(block.timestamp)) {
-            if (locks[_wallet].locker == SignerSelector) {
-                // locked by SecurityModule.addSigner/replaceSigner/removeSigner
-                return 1;
-            } else if (locks[_wallet].locker == TransactionSelector) {
-                // locked by TransactionModule.executeLargeTransaction
-                return 2;
-            } else {
-                // locked by SecurityModule.lock
-                return 3;
-            }
-        } 
-        return 0;
+        uint lockFlag = 0;
+        if (locks[_wallet][SignerSelector] > uint64(block.timestamp)) {
+            lockFlag += 4;
+        } else if (locks[_wallet][TransactionSelector] > uint64(block.timestamp)) {
+            lockFlag += 2;
+        } else if (locks[_wallet][GlobalSelector] > uint64(block.timestamp)) {
+            lockFlag += 1;
+        }
+        return lockFlag;
     }
 
     /**
@@ -113,7 +114,23 @@ abstract contract BaseModule is IModule {
      * @notice Throws if the wallet is locked globally.
      */      
     modifier onlyWhenNonGloballyLocked(address _wallet) {
-        require(_isLocked(_wallet) != 3, "BM:wallet locked globally");
+        require(locks[_wallet][GlobalSelector] <= uint64(block.timestamp), "BM: wallet locked globally");
+        _;
+    }
+
+    /**
+     * @notice Throws if the wallet is locked by signer related operation.
+     */
+    modifier onlyWhenNonSignerLocked(address _wallet) {
+        require(locks[_wallet][SignerSelector] <= uint64(block.timestamp), "BM: wallet locked by signer related operation");
+        _;
+    }
+
+    /**
+     * @notice Throws if the wallet is locked by large tx related operation.
+     */
+    modifier onlyWhenNonLargeTxLocked(address _wallet) {
+        require(locks[_wallet][TransactionSelector] <= uint64(block.timestamp), "BM: wallet locked by large transaction related operation");
         _;
     }
 
