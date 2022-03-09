@@ -301,7 +301,10 @@ describe("Module Registry", () => {
         
         // test lock: we can call lock to add global lock even though addSigner had added a signer related lock. 
         tx = await securityModule.connect(user3).lock(wallet1.address)
-        await tx.wait()
+        //await tx.wait()
+
+        let lockFlag = await securityModule.isLocked(wallet1.address)
+        expect(lockFlag).eq(5)
 
         //wait for calm-down period
         await delay(lockPeriod * 1000);
@@ -315,5 +318,13 @@ describe("Module Registry", () => {
         expect(res1).eq(true)
         res1 = await securityModule.isSigner(wallet1.address, owner.address);
         expect(res1).eq(true)
+    })
+
+    it("test lock", async() => {
+        let tx = await securityModule.connect(user3).lock(wallet1.address)
+        await tx.wait()
+
+        // When the user call the global lock, he or she can't add other locks until the global lock is released.
+        await expect(securityModule.connect(user3).removeSigner(wallet1.address, user1.address)).to.be.revertedWith("BM: wallet locked globally");
     })
 });

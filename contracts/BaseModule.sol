@@ -5,6 +5,8 @@ import "./IModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
+import "hardhat/console.sol";
+
 abstract contract BaseModule is IModule {
 
     event MultiCalled(address to, uint value, bytes data);
@@ -36,13 +38,15 @@ abstract contract BaseModule is IModule {
     }
 
     // default value of lockedPeriod, used for the inherited modules when they need to setlock
-    uint internal lockedSecurityPeriod;
+    //uint internal lockedSecurityPeriod;
 
     /**
      * @notice Lock the wallet
      */
     function _setLock(address _wallet, uint256 _releaseAfter, bytes4 _locker) internal {
         locks[_wallet][_locker] = uint64(_releaseAfter);
+        console.logBytes4(_locker);
+        console.log(locks[_wallet][_locker]);
     }
 
 
@@ -92,11 +96,18 @@ abstract contract BaseModule is IModule {
      */
     function _isLocked(address _wallet) internal view returns (uint) {
         uint lockFlag = 0;
+        console.log(locks[_wallet][SignerSelector]);
         if (locks[_wallet][SignerSelector] > uint64(block.timestamp)) {
             lockFlag += 4;
-        } else if (locks[_wallet][TransactionSelector] > uint64(block.timestamp)) {
+        } 
+        console.log("_isLocked 222");
+        console.log(locks[_wallet][TransactionSelector]);
+        console.log(uint64(block.timestamp));
+        if (locks[_wallet][TransactionSelector] > uint64(block.timestamp)) {
+            console.log("_isLocked 222");
             lockFlag += 2;
-        } else if (locks[_wallet][GlobalSelector] > uint64(block.timestamp)) {
+        } 
+        if (locks[_wallet][GlobalSelector] > uint64(block.timestamp)) {
             lockFlag += 1;
         }
         return lockFlag;

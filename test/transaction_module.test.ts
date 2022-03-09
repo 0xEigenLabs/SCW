@@ -38,12 +38,12 @@ const TMABI = [
     "function addModule(address, address, address, bytes)"
 ]
 
-let lockPeriod = 5 //s
+let lockPeriod = 10 //s
 let recoveryPeriod = 120 //s
 let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800; // 60 seconds
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-describe("Transaction test", () => {
+describe.only("Transaction test", () => {
     before(async () => {
         let factory = await ethers.getContractFactory("ModuleRegistry");
         moduleRegistry = await factory.deploy()
@@ -65,7 +65,7 @@ describe("Transaction test", () => {
         await securityModule.initialize(moduleRegistry.address, lockPeriod, recoveryPeriod)
         console.log("secure module", securityModule.address)
 
-        await transactionModule.initialize(moduleRegistry.address)
+        await transactionModule.initialize(moduleRegistry.address, lockPeriod)
         console.log("transaction module", transactionModule.address)
 
         // register the module
@@ -267,7 +267,7 @@ describe("Transaction test", () => {
         expect(user3EndBalance).eq(user3StartBalance.add(amount))
     });
 
-    it("execute large transaction test", async function() {
+    it.only("execute large transaction test", async function() {
         await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("16")})).wait()
 
         let user3StartEther = await provider.getBalance(user3.address);
@@ -293,10 +293,43 @@ describe("Transaction test", () => {
             wallet1.address, owner.address, user1.address)
         await tx.wait()
 
+        // test lock: we can add global lock after add signer&largeTx related locks.
+        tx = await securityModule.connect(owner).lock(wallet1.address)
+        await tx.wait()
+
+        let lockFlag = await securityModule.isLocked(wallet1.address)
+        expect(lockFlag).eq(7)
+
+        //wait for calm-down period
+        await delay(lockPeriod * 1000);
+
         let user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
+
+    it("test lock", async() => {
+        let tx = await securityModule.connect(owner).lock(wallet1.address)
+        await tx.wait()
+
+        // When the user call the global lock, he or she can't call executeLargeTransaction until the global lock is released.
+        let amount = ethers.utils.parseEther("11")
+        let amountMulti = 0
+        sequenceId = await wallet1.getNextSequenceId()
+        let iface = new ethers.utils.Interface(TMABI)
+        let largeTxData = iface.encodeFunctionData("executeLargeTransaction", [wallet1.address, user3.address, amount, "0x"])
+        let hash = await helpers.signHash(transactionModule.address, amountMulti, largeTxData, /*expireTime,*/ sequenceId)
+        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
+        await expect(securityModule.connect(owner).multicall(
+            wallet1.address,
+            [transactionModule.address, amountMulti, largeTxData, sequenceId, expireTime],
+            signatures
+        )).to.be.revertedWith("BM: wallet locked globally");
+
+        //wait for calm-down period
+        await delay(lockPeriod * 1000);
+    })
 
     it("daily limit check test", async function() {
         // In the last test case, wallet1 transferred 11 eth to user3, and in this test case wallet1 transferred 5 eth to user3. This transfer triggered the daily limit.

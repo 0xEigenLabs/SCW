@@ -20,7 +20,8 @@ contract SecurityModule is BaseModule, Initializable {
     event Locked(address _wallet);
     event Unlocked(address _wallet);
 
-    uint public recoverySecurityPeriod;  
+    uint public recoverySecurityPeriod; 
+    uint public lockedSecurityPeriod; 
 
     struct Recovery {
         uint activeAt; // timestamp for activation of escape mode, 0 otherwise
@@ -174,7 +175,7 @@ contract SecurityModule is BaseModule, Initializable {
                 i = endIndex;
             }
         }
-        // calm-down period. Note that we use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
+        // We use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
         _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         emit SignerReplaced(_wallet, _newSigner, _oldSigner);
     }
