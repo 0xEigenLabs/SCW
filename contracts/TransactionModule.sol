@@ -101,7 +101,7 @@ contract TransactionModule is BaseModule, Initializable {
         emit ExecuteTransaction(_wallet, _args);
     }
 
-    function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenNonGloballyLocked(_wallet) onlyWhenNonLargeTxLocked(_wallet) returns (bytes memory _result){
+    function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenNonGloballyLocked(_wallet) returns (bytes memory _result){
         require(_to != address(this), "TM: cann't call itself");
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
@@ -115,7 +115,6 @@ contract TransactionModule is BaseModule, Initializable {
         }
         emit ExecuteLargeTransaction(_wallet, _to, _value, _data);
         bytes memory res = IWallet(_wallet).raw_invoke(_to, _value, _data);
-        IWallet(_wallet).setLock( block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
         return res;
     }
 }

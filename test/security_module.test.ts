@@ -304,7 +304,7 @@ describe("Module Registry", () => {
         //await tx.wait()
 
         let lockFlag = await securityModule.isLocked(wallet1.address)
-        expect(lockFlag).eq(5)
+        expect(lockFlag).eq(3)
 
         //wait for calm-down period
         await delay(lockPeriod * 1000);

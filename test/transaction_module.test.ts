@@ -288,21 +288,6 @@ describe("Transaction test", () => {
         );
         await res.wait()
 
-        // test lock: we can call replaceSigner even though executeLargeTransaction had added a large transaction related lock.
-        let tx = await securityModule.connect(owner).replaceSigner(
-            wallet1.address, owner.address, user1.address)
-        await tx.wait()
-
-        // test lock: we can add global lock after add signer&largeTx related locks.
-        tx = await securityModule.connect(owner).lock(wallet1.address)
-        await tx.wait()
-
-        let lockFlag = await securityModule.isLocked(wallet1.address)
-        expect(lockFlag).eq(7)
-
-        //wait for calm-down period
-        await delay(lockPeriod * 1000);
-
         let user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
