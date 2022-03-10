@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "./BaseModule.sol";
-import "hardhat/console.sol";
 
 contract TransactionModule is BaseModule, Initializable {
     // events
@@ -116,10 +115,7 @@ contract TransactionModule is BaseModule, Initializable {
         }
         emit ExecuteLargeTransaction(_wallet, _to, _value, _data);
         bytes memory res = IWallet(_wallet).raw_invoke(_to, _value, _data);
-        console.log("111111");
-        console.log(lockedSecurityPeriod);
-        console.logBytes4(this.executeLargeTransaction.selector);
-        _setLock(_wallet, block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
+        IWallet(_wallet).setLock( block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
         return res;
     }
 }

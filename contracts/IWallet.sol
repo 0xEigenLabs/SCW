@@ -34,6 +34,10 @@ interface IWallet {
      */
     function authoriseModule(address _moduleRegistry, address _module, bool _value, bytes memory data) external;
 
+    function isLocked() external view returns (uint);
+
+    function setLock(uint256 _releaseAfter, bytes4 _locker) external; 
+
     function invoke(
         address toAddress,
         uint value,
