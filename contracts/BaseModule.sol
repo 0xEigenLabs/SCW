@@ -5,7 +5,6 @@ import "./IModule.sol";
 import "./IWallet.sol";
 import "./IModuleRegistry.sol";
 
-import "hardhat/console.sol";
 
 abstract contract BaseModule is IModule {
 
@@ -80,16 +79,7 @@ abstract contract BaseModule is IModule {
      */
     modifier onlyWhenNonSignerLocked(address _wallet) {
         uint lockFlag = IWallet(_wallet).isLocked();
-        require(lockFlag != 4 && lockFlag != 6 && lockFlag != 7, "BM: wallet locked by signer related operation");
-        _;
-    }
-
-    /**
-     * @notice Throws if the wallet is locked by large tx related operation.
-     */
-    modifier onlyWhenNonLargeTxLocked(address _wallet) {
-        uint lockFlag = IWallet(_wallet).isLocked();
-        require(lockFlag != 2 && lockFlag != 6 && lockFlag != 7, "BM: wallet locked by large transaction related operation");
+        require(lockFlag != 2 && lockFlag != 3, "BM: wallet locked by signer related operation");
         _;
     }
 
