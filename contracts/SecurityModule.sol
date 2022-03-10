@@ -124,7 +124,7 @@ contract SecurityModule is BaseModule, Initializable {
      * @param _wallet The target wallet.
      */
     function isLocked(address _wallet) public view returns (uint) {
-        return _isLocked(_wallet);
+        return IWallet(_wallet).isLocked();
     }
 
     function findSigner(address[] memory _signers, address _signer) public pure returns (bool) {
@@ -157,7 +157,7 @@ contract SecurityModule is BaseModule, Initializable {
         signerConfInfo.signers.push(signer);
         signerConfInfos[_wallet] = signerConfInfo;
         // calm-down period
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         emit SignerAdded(_wallet, signer);
     }
 
@@ -176,7 +176,7 @@ contract SecurityModule is BaseModule, Initializable {
             }
         }
         // We use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         emit SignerReplaced(_wallet, _newSigner, _oldSigner);
     }
 
@@ -197,7 +197,7 @@ contract SecurityModule is BaseModule, Initializable {
         }
         signerConfInfo.signers.pop();
         // calm-down period. Note that we use the addSigner Selector because we regard the lock action of add/replace/remove signer as the same class.
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         emit SignerRemoved(_wallet, _oldSigner);
     }
 
@@ -220,7 +220,7 @@ contract SecurityModule is BaseModule, Initializable {
             "SM: should not trigger twice"
         );
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.addSigner.selector);
         uint expiry = block.timestamp + signerConfInfo.recoveryPeriod;
 
         recoveries[_wallet] = Recovery({
@@ -234,7 +234,7 @@ contract SecurityModule is BaseModule, Initializable {
         //require(recovery.activeAt != 0 && recovery.recovery != address(0), "not recovering");
         require(isInRecovery(_wallet), "SM: not recovering");
         delete recoveries[_wallet];
-        _setLock(_wallet, 0, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(0, SecurityModule.addSigner.selector);
         emit RecoveryCancelled(_wallet);
     }
 
@@ -248,7 +248,7 @@ contract SecurityModule is BaseModule, Initializable {
         IWallet(_wallet).replaceOwner(recovery_.recovery);
 
         delete recoveries[_wallet];
-        _setLock(_wallet, 0, SecurityModule.addSigner.selector);
+        IWallet(_wallet).setLock(0, SecurityModule.addSigner.selector);
         emit RecoveryExecuted(_wallet);
     }
 
@@ -258,7 +258,7 @@ contract SecurityModule is BaseModule, Initializable {
      */
     function lock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenNonGloballyLocked(_wallet) {
         SignerConfInfo storage signerConfInfo = signerConfInfos[_wallet];
-        _setLock(_wallet, block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.lock.selector);
+        IWallet(_wallet).setLock(block.timestamp + signerConfInfo.lockedPeriod, SecurityModule.lock.selector);
         emit Locked(_wallet);
     }
 
@@ -267,7 +267,7 @@ contract SecurityModule is BaseModule, Initializable {
      * @param _wallet The target wallet.
      */
     function unlock(address _wallet) external onlyOwnerOrSigner(_wallet) onlyWhenGloballyLocked(_wallet) {
-        _setLock(_wallet, 0, SecurityModule.lock.selector);
+        IWallet(_wallet).setLock(0, SecurityModule.lock.selector);
         emit Unlocked(_wallet);
     }
 
