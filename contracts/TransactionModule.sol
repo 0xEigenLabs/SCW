@@ -20,12 +20,15 @@ contract TransactionModule is BaseModule, Initializable {
         uint lastSpendWindow;
     }
 
+    uint public lockedSecurityPeriod; 
+
     mapping (address => PaymentLimitation) public paymentInfos;
 
     constructor() {}
 
-    function initialize(IModuleRegistry _registry) public initializer {
+    function initialize(IModuleRegistry _registry, uint _lockedSecurityPeriod) public initializer {
         registry = _registry;
+        lockedSecurityPeriod = _lockedSecurityPeriod;
     }
 
     function init(address _wallet, bytes memory data) public override onlyWallet(_wallet) {
@@ -98,7 +101,7 @@ contract TransactionModule is BaseModule, Initializable {
         emit ExecuteTransaction(_wallet, _args);
     }
 
-    function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenUnlocked(_wallet) returns (bytes memory _result){
+    function executeLargeTransaction(address _wallet, address _to, uint _value, bytes memory _data) public onlyWallet(_wallet) onlyWhenNonGloballyLocked(_wallet) onlyWhenNonLargeTxLocked(_wallet) returns (bytes memory _result){
         require(_to != address(this), "TM: cann't call itself");
         require(paymentInfos[_wallet].exist, "TM: wallet doesn't register PaymentLimitation");
         PaymentLimitation storage pl = paymentInfos[_wallet];
@@ -112,7 +115,7 @@ contract TransactionModule is BaseModule, Initializable {
         }
         emit ExecuteLargeTransaction(_wallet, _to, _value, _data);
         bytes memory res = IWallet(_wallet).raw_invoke(_to, _value, _data);
-        _setLock(_wallet, block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
+        IWallet(_wallet).setLock( block.timestamp + lockedSecurityPeriod, this.executeLargeTransaction.selector);
         return res;
     }
 }

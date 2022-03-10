@@ -18,6 +18,20 @@ contract Wallet is IWallet, Initializable {
     event RawInvoked(address from, address to, uint value, bytes data);
     event OwnerReplaced(address _newOwner);
 
+    /*
+     * We classify three kinds of selectors used in _setLock to distinguish different types of locks:
+     * 1.SignerSelector is calculated from SecurityModule.addSigner.selector, representing the locks added by these three functions: 
+     * addSigner, replaceSigner and removeSigner.
+     * 2.TransactionSelector is calculated from TransactionModule.executeLargeTransaction.selector, representing the lock added by executeLargeTransaction.
+     * 3.GlobalSelector is calculated from SecurityModule.lock.selector, representing the lock added by lock.
+     * The difference between 3 and 1&2 is that when users trigger SecurityModule's lock funtion, they want to actively lock, 
+     * but when they triggered addSigner, replaceSigner, removeSigner or executeLargeTransaction, the wallet is locked because 
+     * We don't want users to trigger these actions too often for security reasons.
+     */
+    bytes4 internal constant SignerSelector = 0x2239f556;
+    bytes4 internal constant TransactionSelector = 0x8279b062;
+    bytes4 internal constant GlobalSelector = 0xf435f5a7;
+
     // Public fields
     address public override owner;
     uint public override modules;
@@ -25,6 +39,9 @@ contract Wallet is IWallet, Initializable {
     // Internal fields
     uint constant SEQUENCE_ID_WINDOW_SIZE = 10;
     uint[10] recentSequenceIds_;
+
+    // locks
+    mapping (bytes4 => uint64) internal locks;
 
      // The authorised modules
     mapping (address => bool) public override authorised;
@@ -107,6 +124,34 @@ contract Wallet is IWallet, Initializable {
                 delete authorised[_module];    
             }
         }
+    }
+
+    /**
+     * @notice Helper method to check the wallet's lock situation.
+     * Refer to the permission flag of linux => 
+     * 4: locked by signer related operation 
+     * 2: locked by large tx operation 
+     * 1: locked globally
+     */
+    function isLocked() external view override returns (uint) {
+        uint lockFlag = 0;
+        if (locks[SignerSelector] > uint64(block.timestamp)) {
+            lockFlag += 4;
+        } 
+        if (locks[TransactionSelector] > uint64(block.timestamp)) {
+            lockFlag += 2;
+        } 
+        if (locks[GlobalSelector] > uint64(block.timestamp)) {
+            lockFlag += 1;
+        }
+        return lockFlag;
+    }
+
+    /**
+     * @notice Lock the wallet
+     */
+    function setLock(uint256 _releaseAfter, bytes4 _locker) external override onlyModule {
+        locks[_locker] = uint64(_releaseAfter);
     }
 
     function replaceOwner(address _newOwner) external override onlyModule {

@@ -65,7 +65,7 @@ describe("Transaction test", () => {
         await securityModule.initialize(moduleRegistry.address, lockPeriod, recoveryPeriod)
         console.log("secure module", securityModule.address)
 
-        await transactionModule.initialize(moduleRegistry.address)
+        await transactionModule.initialize(moduleRegistry.address, lockPeriod)
         console.log("transaction module", transactionModule.address)
 
         // register the module
@@ -288,10 +288,39 @@ describe("Transaction test", () => {
         );
         await res.wait()
 
+        // test lock: we can call replaceSigner even though executeLargeTransaction had added a large transaction related lock.
+        let tx = await securityModule.connect(owner).replaceSigner(
+            wallet1.address, owner.address, user1.address)
+        await tx.wait()
+
+        // test lock: we can add global lock after add signer&largeTx related locks.
+        tx = await securityModule.connect(owner).lock(wallet1.address)
+        await tx.wait()
+
+        let lockFlag = await securityModule.isLocked(wallet1.address)
+        expect(lockFlag).eq(7)
+
+        //wait for calm-down period
+        await delay(lockPeriod * 1000);
+
         let user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
+
+    it("test lock", async() => {
+        let tx = await securityModule.connect(owner).lock(wallet1.address)
+        await tx.wait()
+
+        // When the user call the global lock, he or she can't call executeTransaction until the global lock is released.
+        let amount = ethers.utils.parseEther("0.01")
+        sequenceId = await wallet1.getNextSequenceId()
+        
+        expect(transactionModule.connect(owner).executeTransaction(
+            wallet1.address,
+            [user3.address, amount, "0x", sequenceId, expireTime]
+        )).to.be.revertedWith("BM: wallet locked globally");
+    })
 
     it("daily limit check test", async function() {
         // In the last test case, wallet1 transferred 11 eth to user3, and in this test case wallet1 transferred 5 eth to user3. This transfer triggered the daily limit.
