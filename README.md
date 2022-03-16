@@ -3,13 +3,13 @@
 Eigen NCW(Self-custodial Wallet) allows you:
 
 - [x] Use multi-signature to manager your asset
-- [x] Recover the owner by social recovery
+- [x] Recover the owner by Social Recovery
 - [x] Lockable
 - [x] Payment Limitation
-- [x] Claim your secret or reputation without privacy breach, redirecting to [dNFT Protocol](https://github.com/ieigen/dNFTProtocol)
+- Integration with Mixer, ZKDEX, and other DeFi protocols
 
 Implemented by Hardhat and OpenZeppelin, aims to be:
-* Upgradeable and Modular
+* Upgradeable and Modular, controlled by DAO(Ongoing)
 * Security
 * Scalablity
 * Simplicity
