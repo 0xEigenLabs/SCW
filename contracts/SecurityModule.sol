@@ -207,6 +207,11 @@ contract SecurityModule is BaseModule, Initializable {
         return config.activeAt != 0 && config.activeAt > uint64(block.timestamp);
     }
 
+    function getRecoveryExpiryTime(address _wallet) public view returns (uint) {
+        Recovery memory config = recoveries[_wallet];
+        return config.activeAt - block.timestamp;
+    }
+    
     /**
      * Declare a recovery, executed by contract itself, called by sendMultiSig.
      * @param _recovery: lost signer
