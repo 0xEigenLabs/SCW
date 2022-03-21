@@ -20,15 +20,12 @@ contract TransactionModule is BaseModule, Initializable {
         uint lastSpendWindow;
     }
 
-    uint public lockedSecurityPeriod; 
-
     mapping (address => PaymentLimitation) public paymentInfos;
 
     constructor() {}
 
-    function initialize(IModuleRegistry _registry, uint _lockedSecurityPeriod) public initializer {
+    function initialize(IModuleRegistry _registry) public initializer {
         registry = _registry;
-        lockedSecurityPeriod = _lockedSecurityPeriod;
     }
 
     function init(address _wallet, bytes memory data) public override onlyWallet(_wallet) {
