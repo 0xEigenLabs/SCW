@@ -65,7 +65,7 @@ describe("Transaction test", () => {
         await securityModule.initialize(moduleRegistry.address, lockPeriod, recoveryPeriod)
         console.log("secure module", securityModule.address)
 
-        await transactionModule.initialize(moduleRegistry.address, lockPeriod)
+        await transactionModule.initialize(moduleRegistry.address)
         console.log("transaction module", transactionModule.address)
 
         // register the module
