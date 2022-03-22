@@ -209,7 +209,7 @@ contract SecurityModule is BaseModule, Initializable {
 
     function getRecoveryExpiryTime(address _wallet) public view returns (uint) {
         Recovery memory config = recoveries[_wallet];
-        if (config.activeAt == 0){
+        if (config.activeAt < block.timestamp) {
             return 0;
         }
         return config.activeAt - block.timestamp;
