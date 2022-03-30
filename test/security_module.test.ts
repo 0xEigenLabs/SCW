@@ -176,15 +176,9 @@ describe("Module Registry", () => {
 
         iface = new ethers.utils.Interface(SMABI)
         data = iface.encodeFunctionData("cancelRecovery", [wallet1.address])
-        hash = await helpers.signHash(securityModule.address, amount, data, /*expireTime,*/ sequenceId)
-        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
-        res = await securityModule.connect(owner).multicall(
-            wallet1.address,
-            [securityModule.address, amount, data, sequenceId, expireTime],
-            signatures
-        );
-        await res.wait()
+        let tx = await securityModule.connect(user3).cancelRecovery(wallet1.address)
+        await tx.wait()
 
         res = await sm.isInRecovery(wallet1.address)
         expect(res).eq(false)
