@@ -36,6 +36,11 @@ contract SecurityModule is BaseModule, Initializable {
         uint recoveryPeriod;
     }
 
+    modifier onlyNewOwner(address _wallet) {
+        require(recoveries[_wallet].recovery == msg.sender, "SM: only the new owner can cancel recovery");
+        _;
+    }
+
     mapping (address => SignerConfInfo) public signerConfInfos;
     constructor() {}
 
@@ -238,7 +243,7 @@ contract SecurityModule is BaseModule, Initializable {
         emit RecoveryTriggered(_wallet, _recovery);
     }
 
-    function cancelRecovery(address _wallet) external onlyWallet(_wallet) {
+    function cancelRecovery(address _wallet) external onlyNewOwner(_wallet) {
         //require(recovery.activeAt != 0 && recovery.recovery != address(0), "not recovering");
         require(isInRecovery(_wallet), "SM: not recovering");
         delete recoveries[_wallet];
