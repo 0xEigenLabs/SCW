@@ -24,7 +24,6 @@ let user1
 let user2
 let user3
 let sequenceId
-const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
     "function executeRecovery(address)",
     "function cancelRecovery(address)",
@@ -78,11 +77,12 @@ describe("Module Registry", () => {
 
         let proxy = await (await ethers.getContractFactory("Proxy")).deploy(masterWallet.address);
         console.log("proxy address", proxy.address)
-        let walletAddress = await proxy.getAddress(salts[0]);
+        const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2,31))
+        let walletAddress = await proxy.getAddress(salt);
         expect(walletAddress).to.exist;
         console.log("proxy wallet", walletAddress)
 
-        const tx = await proxy.create(salts[0]);
+        const tx = await proxy.create(salt);
         await tx.wait()
 
         wallet1 = Wallet__factory.connect(walletAddress, owner)
