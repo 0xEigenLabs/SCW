@@ -5,8 +5,6 @@ import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
 import { expect } from "chai"
 
-const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
-
 const provider = waffle.provider
 
 const getGas = async (tx) => {
@@ -43,10 +41,11 @@ describe('Wallet Factory Test', () => {
 
   it("Should deploy a cloned wallet contract and allow initialization of custom wallet info", async function () {
     // Get the expected address
-    const walletAddress = await proxy.getAddress(salts[0]);
+    const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2,31))
+    const walletAddress = await proxy.getAddress(salt);
     expect(walletAddress).to.exist;
 
-    const tx = await proxy.create(salts[0]);
+    const tx = await proxy.create(salt);
     await tx.wait()
     walletProxyGas = await getGas(tx)
 
