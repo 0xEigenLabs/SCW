@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 ///
 /// @title the special module to upgrade other modules
 /// @notice: the steps to deploy this module:
-///     1. deploy governance wallet with no module.
+///     1. deploy governance wallet with security module only, which is used for multisig.
 ///     2. deploy UpgradeModule;
 ///     3. deploy other module by UpgradeModule's deploy
 contract UpgradeModule is BaseModule, Initializable {
