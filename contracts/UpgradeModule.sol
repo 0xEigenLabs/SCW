@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 import "./BaseModule.sol";
 import "./IWallet.sol";
-import "./IUpgrader.sol";
+import "./IModuleProxy.sol";
+import "./Proxy.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 ///
 /// @title the special module to upgrade other modules
@@ -12,7 +14,8 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 ///     3. deploy other module by UpgradeModule's deploy
 contract UpgradeModule is BaseModule, Initializable {
 
-    mapping (bytes24 => address) public upgraders;
+    using Clones for address;
+    mapping (bytes24 => address) public moduleProxies;
 
     modifier onlyOwner() {
         require(wallets.length > 0 && wallets[0] == msg.sender, "UM: must be owner");
@@ -46,26 +49,28 @@ contract UpgradeModule is BaseModule, Initializable {
         require(false, "Cann't be added");
     }
 
-    function addUpgraders(bytes[] memory symbols, address[] memory addresses) onlyOwner {
+    function addModuleProxies(bytes[] memory symbols, address[] memory addresses) onlyOwner {
         require(
             symbols.length == addresses.length && addresses.length < 3,
-            "UM: Invalid parameters in add upgraders"
+            "UM: Invalid parameters in add moduleProxies"
         );
         for (uint i = 0; i < symbols.length; i++) {
-            require(upgraders[symbols[i]] == address(0), "UM: cann't add one grader twice");
-            //TODO: check the address is implementation of IUpgrade
+            require(moduleProxies[symbols[i]] == address(0), "UM: cann't add one grader twice");
+            //TODO: check the address is implementation of IModuleProxy
             //require(addresses[i]);
-            upgraders[symbols[i]] = addresses[i];
+            moduleProxies[symbols[i]] = addresses[i];
         }
     }
 
-    function upgrade(bytes24 symbol, address newImplements) onlyOwner {
-        require(upgraders[symbol] != address(0), "UM: must registered upgrader can upgrade");
-        IUpgrade(upgraders[symbol]).setImplementation(newImplements);
+    function deploy(bytes24 symbol, address newImplements) onlyOwner {
+        require(moduleProxies[symbol] != address(0), "UM: must registered upgrader can upgrade");
+        //  1. clone the newImplements to a new contract
+        bytes32 salt = ""; //TODO: generate a random
+        address newAddress = newImplements.predictDeterministicAddress(salt);
+        newImplements.cloneDeterministic(salt);
+
+        //  2. update the moduleProxy
+        IModuleProxy(moduleProxies[symbol]).setImplementation(newAddress);
     }
 
-    // TODO
-    function deploy() {
-
-    }
 }

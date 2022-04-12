@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
-import "./IUpgrader.sol";
+import "./IModuleProxy.sol";
 
-contract Upgrader is IUpgrader {
+contract ModuleProxy is IModuleProxy {
     address public implementation;
 
     function setImplementation(address _imp) external {

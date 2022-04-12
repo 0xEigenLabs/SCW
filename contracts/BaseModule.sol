@@ -9,6 +9,7 @@ import "./IModuleRegistry.sol";
 abstract contract BaseModule is IModule {
 
     event MultiCalled(address to, uint value, bytes data);
+    address public implementation;
     IModuleRegistry internal registry;
     address[] internal wallets;
 
