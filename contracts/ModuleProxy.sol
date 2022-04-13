@@ -5,7 +5,7 @@ import "./IModuleProxy.sol";
 contract ModuleProxy is IModuleProxy {
     address public implementation;
 
-    function setImplementation(address _imp) external {
+    function setImplementation(address _imp) external override {
         implementation = _imp;
     }
 
