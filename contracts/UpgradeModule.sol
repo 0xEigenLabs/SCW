@@ -6,6 +6,8 @@ import './Proxy.sol';
 import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import '@openzeppelin/contracts/proxy/Clones.sol';
 
+import 'hardhat/console.sol';
+
 //
 // @title the special module to upgrade other modules
 // @notice: the steps to deploy this module:
@@ -17,6 +19,10 @@ contract UpgradeModule is BaseModule, Initializable {
     mapping(string => address) public moduleProxies;
 
     modifier onlyWalletOwner() {
+        console.log('wallet.length = ', wallets.length);
+        console.log('wallets[0] = ', wallets[0]);
+        console.log('msg.sender = ', msg.sender);
+
         require(
             wallets.length > 0 && wallets[0] == msg.sender,
             'UM: must be owner'

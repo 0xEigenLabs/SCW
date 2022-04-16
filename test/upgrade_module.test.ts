@@ -41,6 +41,8 @@ const TMABI = [
     'function addModule(address, address, address, bytes)',
 ]
 
+const UMABI = ['function addModuleProxies(string[] memory,address[] memory)']
+
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
 let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
@@ -246,12 +248,34 @@ describe('UpgradeModule test', () => {
     })
 
     it('should add module proxies', async function () {
-        await upgradeModule
-            .connect(governancerWallet)
-            .addModuleProxies(
-                ['TransactionModule', 'SecurityModule'],
-                [transactionModule.address, securityModule.address]
+        // change security parameters
+        let amount = 0
+        let iface = new ethers.utils.Interface(UMABI)
+        let data = iface.encodeFunctionData('addModuleProxies', [
+            ['TransactionModule', 'SecurityModule'],
+            [transactionModule.address, securityModule.address],
+        ])
+        sequenceId = await governancerWallet.getNextSequenceId()
+        let hash = await helpers.signHash(
+            upgradeModule.address,
+            amount,
+            data,
+            /*expireTime,*/ sequenceId
+        )
+        let signatures = await helpers.getSignatures(
+            ethers.utils.arrayify(hash),
+            [user1, user2]
+        )
+
+        // When modifying security parameters, you need to call multi-signature.
+        let res = await securityModule
+            .connect(governancer)
+            .multicall(
+                governancerWallet.address,
+                [upgradeModule.address, amount, data, sequenceId, expireTime],
+                signatures
             )
+        await res.wait()
 
         console.log('Add module proxy for TransactionModule')
     })
