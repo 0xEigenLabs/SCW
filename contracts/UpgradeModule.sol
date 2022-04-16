@@ -19,10 +19,6 @@ contract UpgradeModule is BaseModule, Initializable {
     mapping(string => address) public moduleProxies;
 
     modifier onlyWalletOwner() {
-        console.log('wallet.length = ', wallets.length);
-        console.log('wallets[0] = ', wallets[0]);
-        console.log('msg.sender = ', msg.sender);
-
         require(
             wallets.length > 0 && wallets[0] == msg.sender,
             'UM: must be owner'

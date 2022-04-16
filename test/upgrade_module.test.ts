@@ -23,8 +23,8 @@ let moduleRegistry
 let transactionModule
 let securityModule
 let testToken
+let masterWallet
 let governancerWallet
-let wallet1
 let governancer
 let user1
 let user2
@@ -90,9 +90,9 @@ describe('UpgradeModule test', () => {
         await res1.wait()
 
         factory = await ethers.getContractFactory('Wallet')
-        governancerWallet = await factory.deploy()
-        await governancerWallet.deployed()
-        console.log('governancer wallet', governancerWallet.address)
+        masterWallet = await factory.deploy()
+        await masterWallet.deployed()
+        console.log('master wallet', masterWallet.address)
 
         governancer = await ethers.getSigner()
         user1 = Wallet.createRandom().connect(provider)
@@ -112,7 +112,7 @@ describe('UpgradeModule test', () => {
 
         let proxy = await (
             await ethers.getContractFactory('Proxy')
-        ).deploy(governancerWallet.address)
+        ).deploy(masterWallet.address)
         console.log('proxy address', proxy.address)
         let walletAddress = await proxy.getAddress(salts[0])
         expect(walletAddress).to.exist
@@ -121,8 +121,8 @@ describe('UpgradeModule test', () => {
         const tx = await proxy.create(salts[0])
         await tx.wait()
 
-        wallet1 = Wallet__factory.connect(walletAddress, governancer)
-        console.log('governancer wallet address', wallet1.address)
+        governancerWallet = Wallet__factory.connect(walletAddress, governancer)
+        console.log('governancer wallet address', governancerWallet.address)
 
         /**
          * There are two ways to add modules to the wallet:
@@ -142,14 +142,14 @@ describe('UpgradeModule test', () => {
         // 2:Call the wallet's authoriseModule method.
         await (
             await governancer.sendTransaction({
-                to: wallet1.address,
+                to: governancerWallet.address,
                 value: ethers.utils.parseEther('1.2'),
             })
         ).wait()
         let encoder = ethers.utils.defaultAbiCoder
         // You must initialize the wallet with at least one module.And if you want to authorise another module, you need to call multi-signature, which means securityModule is a must.
         await (
-            await wallet1.initialize(
+            await governancerWallet.initialize(
                 [securityModule.address],
                 [
                     encoder.encode(
@@ -168,11 +168,11 @@ describe('UpgradeModule test', () => {
         let iface = new ethers.utils.Interface(TMABI)
         let data = iface.encodeFunctionData('addModule', [
             moduleRegistry.address,
-            wallet1.address,
+            governancerWallet.address,
             transactionModule.address,
             tmData,
         ])
-        sequenceId = await wallet1.getNextSequenceId()
+        sequenceId = await governancerWallet.getNextSequenceId()
         let hash = await helpers.signHash(
             transactionModule.address,
             amount,
@@ -188,7 +188,7 @@ describe('UpgradeModule test', () => {
         res = await securityModule
             .connect(governancer)
             .multicall(
-                wallet1.address,
+                governancerWallet.address,
                 [
                     transactionModule.address,
                     amount,
@@ -227,10 +227,10 @@ describe('UpgradeModule test', () => {
         // deposit to wallet
         let depositAmount = ethers.utils.parseEther('0.1')
         await governancer.sendTransaction({
-            to: wallet1.address,
+            to: governancerWallet.address,
             value: depositAmount,
         })
-        sequenceId = await wallet1.getNextSequenceId()
+        sequenceId = await governancerWallet.getNextSequenceId()
         expireTime = Math.floor(new Date().getTime() / 1000) + 1800
 
         let factory = await ethers.getContractFactory('UpgradeModule')
@@ -267,7 +267,7 @@ describe('UpgradeModule test', () => {
             [user1, user2]
         )
 
-        // When modifying security parameters, you need to call multi-signature.
+        // When addModuleProxies, you need to call multi-signature
         let res = await securityModule
             .connect(governancer)
             .multicall(
