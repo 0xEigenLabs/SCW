@@ -244,4 +244,15 @@ describe('UpgradeModule test', () => {
 
         console.log('UpgradeModule initialized')
     })
+
+    it('should add module proxies', async function () {
+        await upgradeModule
+            .connect(governancerWallet)
+            .addModuleProxies(
+                ['TransactionModule', 'SecurityModule'],
+                [transactionModule.address, securityModule.address]
+            )
+
+        console.log('Add module proxy for TransactionModule')
+    })
 })

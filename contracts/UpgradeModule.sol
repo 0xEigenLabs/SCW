@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-import "./BaseModule.sol";
-import "./IWallet.sol";
-import "./IModuleProxy.sol";
-import "./Proxy.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
+import './BaseModule.sol';
+import './IWallet.sol';
+import './IModuleProxy.sol';
+import './Proxy.sol';
+import '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import '@openzeppelin/contracts/proxy/Clones.sol';
 
 //
 // @title the special module to upgrade other modules
@@ -14,12 +14,12 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 //     3. deploy other module by UpgradeModule's deploy
 contract UpgradeModule is BaseModule, Initializable {
     using Clones for address;
-    mapping(bytes24 => address) public moduleProxies;
+    mapping(string => address) public moduleProxies;
 
     modifier onlyWalletOwner() {
         require(
             wallets.length > 0 && wallets[0] == msg.sender,
-            "UM: must be owner"
+            'UM: must be owner'
         );
         _;
     }
@@ -32,7 +32,7 @@ contract UpgradeModule is BaseModule, Initializable {
         // check its a IWallet, and the owner is valid
         require(
             IWallet(_governancer).owner() != address(0),
-            "UM: Invalid governancer"
+            'UM: Invalid governancer'
         );
         require(wallets.length == 0, "UM: Can't setup multiple governancer");
         addWallet(_governancer);
@@ -76,12 +76,12 @@ contract UpgradeModule is BaseModule, Initializable {
     }
 
     function addModuleProxies(
-        bytes24[] memory symbols,
+        string[] memory symbols,
         address[] memory addresses
     ) public onlyWalletOwner {
         require(
             symbols.length == addresses.length && addresses.length < 3,
-            "UM: Invalid parameters in add moduleProxies"
+            'UM: Invalid parameters in add moduleProxies'
         );
         for (uint256 i = 0; i < symbols.length; i++) {
             require(
@@ -94,16 +94,16 @@ contract UpgradeModule is BaseModule, Initializable {
         }
     }
 
-    function deploy(bytes24 symbol, address newImplements)
+    function deploy(string memory symbol, address newImplements)
         public
         onlyWalletOwner
     {
         require(
             moduleProxies[symbol] != address(0),
-            "UM: must registered upgrader can upgrade"
+            'UM: must registered upgrader can upgrade'
         );
         //  1. clone the newImplements to a new contract
-        bytes32 salt = ""; //TODO: generate a random
+        bytes32 salt = ''; //TODO: generate a random
         address newAddress = newImplements.predictDeterministicAddress(salt);
         newImplements.cloneDeterministic(salt);
 
