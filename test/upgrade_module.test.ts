@@ -41,7 +41,10 @@ const TMABI = [
     'function addModule(address, address, address, bytes)',
 ]
 
-const UMABI = ['function addModuleProxies(string[] memory,address[] memory)']
+const UMABI = [
+    'function addModuleProxies(string[] memory,address[] memory)',
+    'function deploy(string memory, address)',
+]
 
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
@@ -248,7 +251,7 @@ describe('UpgradeModule test', () => {
     })
 
     it('should add module proxies', async function () {
-        // change security parameters
+        // Multicall for addModuleProxies
         let amount = 0
         let iface = new ethers.utils.Interface(UMABI)
         let data = iface.encodeFunctionData('addModuleProxies', [
@@ -278,5 +281,70 @@ describe('UpgradeModule test', () => {
         await res.wait()
 
         console.log('Add module proxy for TransactionModule')
+    })
+
+    it('chould deploy other modules', async function () {
+        // Multicall for addModuleProxies
+        let amount = 0
+        let iface = new ethers.utils.Interface(UMABI)
+        let data = iface.encodeFunctionData('addModuleProxies', [
+            ['TransactionModule', 'SecurityModule'],
+            [transactionModule.address, securityModule.address],
+        ])
+        sequenceId = await governancerWallet.getNextSequenceId()
+        let hash = await helpers.signHash(
+            upgradeModule.address,
+            amount,
+            data,
+            /*expireTime,*/ sequenceId
+        )
+        let signatures = await helpers.getSignatures(
+            ethers.utils.arrayify(hash),
+            [user1, user2]
+        )
+
+        // When addModuleProxies, you need to call multi-signature
+        let res = await securityModule
+            .connect(governancer)
+            .multicall(
+                governancerWallet.address,
+                [upgradeModule.address, amount, data, sequenceId, expireTime],
+                signatures
+            )
+        await res.wait()
+
+        console.log('Deploy other modules')
+
+        amount = 0
+        iface = new ethers.utils.Interface(UMABI)
+        data = iface.encodeFunctionData('deploy', [
+            'SecurityModule',
+            securityModule.address,
+        ])
+        sequenceId = await governancerWallet.getNextSequenceId()
+        hash = await helpers.signHash(
+            upgradeModule.address,
+            amount,
+            data,
+            /*expireTime,*/ sequenceId
+        )
+        signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [
+            user1,
+            user2,
+        ])
+
+        console.log('Before deploy SecurityModule')
+
+        // When deploy, you need to call multi-signature
+        res = await securityModule
+            .connect(governancer)
+            .multicall(
+                governancerWallet.address,
+                [upgradeModule.address, amount, data, sequenceId, expireTime],
+                signatures
+            )
+        await res.wait()
+
+        console.log('deploy SecurityModule')
     })
 })
