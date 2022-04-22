@@ -46,9 +46,55 @@ const UMABI = [
     'function deploy(string memory, address)',
 ]
 
+import { Contract, constants } from 'ethers'
+
+const DELAY = 60 * 60 * 24 * 2
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
 let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
-describe('Governor test', () => {})
+describe('GovernorAlpha', async () => {
+    const wallet = await ethers.getSigner()
+
+    let testToken: Contract
+    let timelock: Contract
+    let governorAlpha: Contract
+    beforeEach(async () => {
+        let factory = await ethers.getContractFactory('TestToken')
+        testToken = await factory.deploy()
+        await moduleRegistry.deployed()
+
+        factory = await ethers.getContractFactory('TimeLock')
+        timelock = await factory.deploy()
+        await moduleRegistry.deployed()
+
+        factory = await ethers.getContractFactory('GovernorAlpha')
+        governorAlpha = await factory.deploy()
+        await moduleRegistry.deployed()
+    })
+
+    it('testToken', async () => {
+        const balance = await testToken.balanceOf(wallet.address)
+        const totalSupply = await testToken.totalSupply()
+        expect(balance).to.be.eq(totalSupply)
+    })
+
+    it('timelock', async () => {
+        const admin = await timelock.admin()
+        expect(admin).to.be.eq(governorAlpha.address)
+        const pendingAdmin = await timelock.pendingAdmin()
+        expect(pendingAdmin).to.be.eq(constants.AddressZero)
+        const delay = await timelock.delay()
+        expect(delay).to.be.eq(DELAY)
+    })
+
+    it('governor', async () => {
+        const votingPeriod = await governorAlpha.votingPeriod()
+        expect(votingPeriod).to.be.eq(40320)
+        const timelockAddress = await governorAlpha.timelock()
+        expect(timelockAddress).to.be.eq(timelock.address)
+        const testTokenFromGovernor = await governorAlpha.testToken()
+        expect(testTokenFromGovernor).to.be.eq(testToken.address)
+    })
+})
