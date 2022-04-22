@@ -7,6 +7,8 @@ chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
 
+const { getContractAddress } = require('@ethersproject/address')
+
 const helpers = require('./helpers')
 
 const provider = waffle.provider
@@ -37,22 +39,38 @@ let recoveryPeriod = 120 //s
 let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
-describe('GovernorAlpha', async () => {
-    const [wallet] = await ethers.getSigners()
-
+describe('GovernorAlpha', () => {
+    let wallet: Wallet
     beforeEach(async function () {
+        wallet = await ethers.getSigner()
         const { timestamp: now } = await provider.getBlock('latest')
-        let factory = await ethers.getContractFactory('Timelock')
-        timelock = await factory.deploy()
-        await timelock.deployed()
-
-        factory = await ethers.getContractFactory('GovernanceToken')
+        let transactionCount = await wallet.getTransactionCount()
+        console.log('Current transaction count:', transactionCount)
+        const timelockAddress = Contract.getContractAddress({
+            from: wallet.address,
+            nonce: transactionCount + 1,
+        })
+        console.log('Expect Timelock address:', timelockAddress)
+        let factory = await ethers.getContractFactory('GovernanceToken')
         governanceToken = await factory.deploy(
             wallet.address,
-            timelock.address,
+            timelockAddress,
             now + 60 * 60
         )
-        await governanceToken.deployed()
+        console.log('GovernanceToken address:', governanceToken.address)
+
+        transactionCount = await wallet.getTransactionCount()
+
+        const governorAlphaAddress = Contract.getContractAddress({
+            from: wallet.address,
+            nonce: transactionCount + 1,
+        })
+
+        factory = await ethers.getContractFactory('Timelock')
+        timelock = await factory.deploy(governorAlphaAddress, DELAY)
+        await timelock.deployed()
+        console.log('Actual Timelock address:', timelock.address)
+        expect(timelock.address).to.be.eq(timelockAddress)
 
         factory = await ethers.getContractFactory('GovernorAlpha')
         governorAlpha = await factory.deploy(
@@ -82,7 +100,7 @@ describe('GovernorAlpha', async () => {
         expect(votingPeriod).to.be.eq(40320)
         const timelockAddress = await governorAlpha.timelock()
         expect(timelockAddress).to.be.eq(timelock.address)
-        const testTokenFromGovernor = await governorAlpha.testToken()
+        const testTokenFromGovernor = await governorAlpha.eigen()
         expect(testTokenFromGovernor).to.be.eq(governanceToken.address)
     })
 })
