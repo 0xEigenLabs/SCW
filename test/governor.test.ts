@@ -7,31 +7,14 @@ chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
 
-import { ModuleRegistry } from '../typechain/ModuleRegistry'
-import { ModuleRegistry__factory } from '../typechain/factories/ModuleRegistry__factory'
-import { SecurityModule__factory } from '../typechain/factories/SecurityModule__factory'
-import { TransactionModule__factory } from '../typechain/factories/TransactionModule__factory'
-import { Wallet__factory } from '../typechain/factories/Wallet__factory'
-import { BaseModule__factory } from '../typechain/factories/BaseModule__factory'
-import { GovernorAlpha__factory } from '../typechain/factories/GovernorAlpha__factory'
-
 const helpers = require('./helpers')
 
 const provider = waffle.provider
 
-let moduleRegistry
-let transactionModule
 let securityModule
-let testToken
-let masterWallet
-let governancerWallet
-let governancer
-let user1
-let user2
-let user3
-let anyUser
-let sequenceId
-let upgradeModule
+let governanceToken
+let timelock
+let governorAlpha
 
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const TMABI = [
@@ -55,28 +38,33 @@ let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
 describe('GovernorAlpha', async () => {
-    const wallet = await ethers.getSigner()
+    const [wallet] = await ethers.getSigners()
 
-    let testToken: Contract
-    let timelock: Contract
-    let governorAlpha: Contract
-    beforeEach(async () => {
-        let factory = await ethers.getContractFactory('TestToken')
-        testToken = await factory.deploy()
-        await moduleRegistry.deployed()
-
-        factory = await ethers.getContractFactory('TimeLock')
+    beforeEach(async function () {
+        const { timestamp: now } = await provider.getBlock('latest')
+        let factory = await ethers.getContractFactory('Timelock')
         timelock = await factory.deploy()
-        await moduleRegistry.deployed()
+        await timelock.deployed()
+
+        factory = await ethers.getContractFactory('GovernanceToken')
+        governanceToken = await factory.deploy(
+            wallet.address,
+            timelock.address,
+            now + 60 * 60
+        )
+        await governanceToken.deployed()
 
         factory = await ethers.getContractFactory('GovernorAlpha')
-        governorAlpha = await factory.deploy()
-        await moduleRegistry.deployed()
+        governorAlpha = await factory.deploy(
+            timelock.address,
+            governanceToken.address
+        )
+        await governorAlpha.deployed()
     })
 
-    it('testToken', async () => {
-        const balance = await testToken.balanceOf(wallet.address)
-        const totalSupply = await testToken.totalSupply()
+    it('governanceToken', async () => {
+        const balance = await governanceToken.balanceOf(wallet.address)
+        const totalSupply = await governanceToken.totalSupply()
         expect(balance).to.be.eq(totalSupply)
     })
 
@@ -95,6 +83,6 @@ describe('GovernorAlpha', async () => {
         const timelockAddress = await governorAlpha.timelock()
         expect(timelockAddress).to.be.eq(timelock.address)
         const testTokenFromGovernor = await governorAlpha.testToken()
-        expect(testTokenFromGovernor).to.be.eq(testToken.address)
+        expect(testTokenFromGovernor).to.be.eq(governanceToken.address)
     })
 })
