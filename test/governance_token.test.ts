@@ -37,12 +37,6 @@ function expandTo18Decimals(n: number): BigNumber {
     return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
 }
 
-const DELAY = 60 * 60 * 24 * 2
-
-let governanceToken
-let timelock
-let governorAlpha
-
 describe('Governance Token', () => {
     const provider = new MockProvider({
         ganacheOptions: {
@@ -68,7 +62,7 @@ describe('Governance Token', () => {
                 ['bytes32', 'bytes32', 'uint256', 'address'],
                 [
                     DOMAIN_TYPEHASH,
-                    utils.keccak256(utils.toUtf8Bytes('governanceTokenswap')),
+                    utils.keccak256(utils.toUtf8Bytes('GovernanceToken')),
                     1,
                     governanceToken.address,
                 ]
@@ -116,6 +110,17 @@ describe('Governance Token', () => {
             Buffer.from(wallet.privateKey.slice(2), 'hex')
         )
 
+        console.log(
+            'Going to call permit: ',
+            owner,
+            spender,
+            value,
+            deadline,
+            v,
+            utils.hexlify(r),
+            utils.hexlify(s)
+        )
+
         await governanceToken.permit(
             owner,
             spender,
@@ -125,6 +130,8 @@ describe('Governance Token', () => {
             utils.hexlify(r),
             utils.hexlify(s)
         )
+
+        console.log('Success to call permit')
         expect(await governanceToken.allowance(owner, spender)).to.eq(value)
         expect(await governanceToken.nonces(owner)).to.eq(1)
 
