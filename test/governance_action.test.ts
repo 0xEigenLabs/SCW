@@ -149,7 +149,7 @@ describe('Governance Action', () => {
         wallet1 = Wallet__factory.connect(walletAddress, owner)
         console.log('wallet address', wallet1.address)
 
-        let modules = [securityModule.address]
+        let modules = [securityModuleProxy.address]
         let encoder = ethers.utils.defaultAbiCoder
         let data = [
             encoder.encode(['address[]'], [[user1.address, user2.address]]),
