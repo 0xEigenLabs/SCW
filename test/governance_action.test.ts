@@ -23,6 +23,7 @@ const provider = waffle.provider
 
 let moduleRegistry
 let proxiedSerurityModule
+let securityModuleProxy
 let masterWallet
 let wallet1
 let owner
@@ -85,7 +86,7 @@ describe('Governance Action', () => {
         console.log('SecurityModule is deployed at: ', securityModule.address)
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        let securityModuleProxy = await factory.deploy()
+        securityModuleProxy = await factory.deploy()
         await securityModuleProxy.deployed()
 
         console.log(
@@ -185,6 +186,17 @@ describe('Governance Action', () => {
         })
         sequenceId = await wallet1.getNextSequenceId()
         expireTime = Math.floor(new Date().getTime() / 1000) + 1800
+
+        // Every time we update a security module with proxy set implementation
+        let factory = await ethers.getContractFactory('SecurityModule')
+        let securityModule = await factory.deploy()
+        await securityModule.deployed()
+        console.log(
+            'A New SecurityModule is deployed at: ',
+            securityModule.address
+        )
+
+        await securityModuleProxy.setImplementation(securityModule.address)
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
