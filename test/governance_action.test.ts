@@ -76,13 +76,6 @@ describe('Governance Action', () => {
         await securityModule.deployed()
         console.log('SecurityModule is deployed at: ', securityModule.address)
 
-        await securityModule.initialize(
-            moduleRegistry.address,
-            lockPeriod,
-            recoveryPeriod
-        )
-        console.log('SecurityModule Initialized')
-
         factory = await ethers.getContractFactory('ModuleProxy')
         let securityModuleProxy = await factory.deploy()
         await securityModuleProxy.deployed()
@@ -97,6 +90,13 @@ describe('Governance Action', () => {
             'The proxy of SecurityModule is set with ',
             securityModule.address
         )
+
+        await securityModuleProxy.initialize(
+            moduleRegistry.address,
+            lockPeriod,
+            recoveryPeriod
+        )
+        console.log('SecurityModule Initialized')
 
         // register the proxy module
         let res = await moduleRegistry.registerModule(
