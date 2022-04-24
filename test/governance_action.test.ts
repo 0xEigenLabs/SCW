@@ -22,7 +22,7 @@ let governorAlpha
 const provider = waffle.provider
 
 let moduleRegistry
-let securityModuleProxy
+let proxiedSerurityModule
 let masterWallet
 let wallet1
 let owner
@@ -32,11 +32,14 @@ let user3
 let sequenceId
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
+    'function initialize(address, uint, uint)',
     'function executeRecovery(address)',
     'function cancelRecovery(address)',
     'function triggerRecovery(address, address)',
     'function setSecurityPeriod(address, uint, uint)',
 ]
+
+import SecurityModule from '../artifacts/contracts/SecurityModule.sol/SecurityModule.json'
 
 import { Wallet__factory } from '../typechain/factories/Wallet__factory'
 import { ModuleRegistry } from '../typechain/ModuleRegistry'
@@ -66,6 +69,11 @@ function expandTo18Decimals(n: number): BigNumber {
 
 describe('Governance Action', () => {
     before(async () => {
+        owner = await ethers.getSigner()
+        user1 = Wallet.createRandom().connect(provider)
+        user2 = Wallet.createRandom().connect(provider)
+        user3 = Wallet.createRandom().connect(provider)
+
         let factory = await ethers.getContractFactory('ModuleRegistry')
         moduleRegistry = await factory.deploy()
         await moduleRegistry.deployed()
@@ -91,12 +99,18 @@ describe('Governance Action', () => {
             securityModule.address
         )
 
-        await securityModuleProxy.initialize(
+        proxiedSerurityModule = new ethers.Contract(
+            securityModuleProxy.address,
+            SecurityModule.abi,
+            owner
+        )
+
+        await proxiedSerurityModule.initialize(
             moduleRegistry.address,
             lockPeriod,
             recoveryPeriod
         )
-        console.log('SecurityModule Initialized')
+        console.log('Proxied Security Module Initialized')
 
         // register the proxy module
         let res = await moduleRegistry.registerModule(
@@ -109,12 +123,6 @@ describe('Governance Action', () => {
         masterWallet = await factory.deploy()
         await masterWallet.deployed()
         console.log('master wallet', masterWallet.address)
-
-        // FIXME
-        owner = await ethers.getSigner()
-        user1 = Wallet.createRandom().connect(provider)
-        user2 = Wallet.createRandom().connect(provider)
-        user3 = Wallet.createRandom().connect(provider)
 
         console.log('unsorted', user1.address, user2.address, user3.address)
         let signers = [user1, user2, user3]
@@ -180,10 +188,10 @@ describe('Governance Action', () => {
     })
 
     it("change security module's lock period or recovery period", async function () {
-        let lp = await securityModuleProxy.getLockedSecurityPeriod(
+        let lp = await proxiedSerurityModule.getLockedSecurityPeriod(
             wallet1.address
         )
-        let rp = await securityModuleProxy.getRecoverySecurityPeriod(
+        let rp = await proxiedSerurityModule.getRecoverySecurityPeriod(
             wallet1.address
         )
         expect(lp).eq(5)
@@ -198,7 +206,7 @@ describe('Governance Action', () => {
             119,
         ])
         let hash = await helpers.signHash(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
@@ -209,12 +217,12 @@ describe('Governance Action', () => {
         )
 
         // When modifying security parameters, you need to call multi-signature.
-        let res = await securityModuleProxy
+        let res = await proxiedSerurityModule
             .connect(owner)
             .multicall(
                 wallet1.address,
                 [
-                    securityModuleProxy.address,
+                    proxiedSerurityModule.address,
                     amount,
                     data,
                     sequenceId,
@@ -223,8 +231,10 @@ describe('Governance Action', () => {
                 signatures
             )
         await res.wait()
-        lp = await securityModuleProxy.getLockedSecurityPeriod(wallet1.address)
-        rp = await securityModuleProxy.getRecoverySecurityPeriod(
+        lp = await proxiedSerurityModule.getLockedSecurityPeriod(
+            wallet1.address
+        )
+        rp = await proxiedSerurityModule.getRecoverySecurityPeriod(
             wallet1.address
         )
         expect(lp).eq(4)
@@ -242,7 +252,7 @@ describe('Governance Action', () => {
         ])
         sequenceId = await wallet1.getNextSequenceId()
         hash = await helpers.signHash(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
@@ -252,12 +262,12 @@ describe('Governance Action', () => {
             user2,
         ])
 
-        res = await securityModuleProxy
+        res = await proxiedSerurityModule
             .connect(owner)
             .multicall(
                 wallet1.address,
                 [
-                    securityModuleProxy.address,
+                    proxiedSerurityModule.address,
                     amount,
                     data,
                     sequenceId,
@@ -267,8 +277,10 @@ describe('Governance Action', () => {
             )
         await res.wait()
         //await (await securityModule.connect(owner).setSecurityPeriod(wallet1.address, 5, 120)).wait()
-        lp = await securityModuleProxy.getLockedSecurityPeriod(wallet1.address)
-        rp = await securityModuleProxy.getRecoverySecurityPeriod(
+        lp = await proxiedSerurityModule.getLockedSecurityPeriod(
+            wallet1.address
+        )
+        rp = await proxiedSerurityModule.getRecoverySecurityPeriod(
             wallet1.address
         )
         expect(lp).eq(5)
@@ -277,7 +289,7 @@ describe('Governance Action', () => {
 
     it('should trigger recovery', async function () {
         let sm = SecurityModule__factory.connect(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             user1
         )
 
@@ -288,7 +300,7 @@ describe('Governance Action', () => {
             user3.address,
         ])
         let hash = await helpers.signHash(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
@@ -298,12 +310,12 @@ describe('Governance Action', () => {
             [user1, user2]
         )
 
-        let res = await securityModuleProxy
+        let res = await proxiedSerurityModule
             .connect(owner)
             .multicall(
                 wallet1.address,
                 [
-                    securityModuleProxy.address,
+                    proxiedSerurityModule.address,
                     amount,
                     data,
                     sequenceId,
@@ -320,7 +332,7 @@ describe('Governance Action', () => {
         iface = new ethers.utils.Interface(SMABI)
         data = iface.encodeFunctionData('cancelRecovery', [wallet1.address])
 
-        let tx = await securityModuleProxy
+        let tx = await proxiedSerurityModule
             .connect(user3)
             .cancelRecovery(wallet1.address)
         await tx.wait()
@@ -337,7 +349,7 @@ describe('Governance Action', () => {
             user3.address,
         ])
         let hash = await helpers.signHash(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
@@ -348,12 +360,12 @@ describe('Governance Action', () => {
         )
 
         await expect(
-            securityModuleProxy
+            proxiedSerurityModule
                 .connect(user3)
                 .multicall(
                     wallet1.address,
                     [
-                        securityModuleProxy.address,
+                        proxiedSerurityModule.address,
                         amount,
                         data,
                         sequenceId,
@@ -365,18 +377,18 @@ describe('Governance Action', () => {
     })
 
     it('should execute recovery', async () => {
-        let res1 = await securityModuleProxy.isSigner(
+        let res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(true)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(true)
 
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user3.address
         )
@@ -392,7 +404,7 @@ describe('Governance Action', () => {
             user3.address,
         ])
         let hash = await helpers.signHash(
-            securityModuleProxy.address,
+            proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
@@ -402,12 +414,12 @@ describe('Governance Action', () => {
             [user1, user2]
         )
 
-        let res = await securityModuleProxy
+        let res = await proxiedSerurityModule
             .connect(owner)
             .multicall(
                 wallet1.address,
                 [
-                    securityModuleProxy.address,
+                    proxiedSerurityModule.address,
                     amount,
                     data,
                     sequenceId,
@@ -418,7 +430,7 @@ describe('Governance Action', () => {
         await res.wait()
 
         // the new owner executes recovery
-        let tx = await securityModuleProxy
+        let tx = await proxiedSerurityModule
             .connect(user3)
             .executeRecovery(wallet1.address)
         await tx.wait()
@@ -427,34 +439,36 @@ describe('Governance Action', () => {
     })
 
     it('should lock', async () => {
-        let tx = await securityModuleProxy.connect(user1).lock(wallet1.address)
+        let tx = await proxiedSerurityModule
+            .connect(user1)
+            .lock(wallet1.address)
         await tx.wait()
 
         await expect(
-            securityModuleProxy.lock(wallet1.address)
+            proxiedSerurityModule.lock(wallet1.address)
         ).to.be.revertedWith('SM: must be signer/wallet')
 
         await expect(
-            securityModuleProxy.connect(user1).lock(wallet1.address)
+            proxiedSerurityModule.connect(user1).lock(wallet1.address)
         ).to.be.revertedWith('BM: wallet locked globally')
 
-        tx = await securityModuleProxy.connect(user1).unlock(wallet1.address)
+        tx = await proxiedSerurityModule.connect(user1).unlock(wallet1.address)
         await tx.wait()
     })
 
     it('should change signer', async () => {
         // The owner is user3
-        let res1 = await securityModuleProxy.isSigner(
+        let res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(true)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(true)
-        let tx = await securityModuleProxy
+        let tx = await proxiedSerurityModule
             .connect(user3)
             .replaceSigner(wallet1.address, owner.address, user1.address)
         await tx.wait()
@@ -462,17 +476,17 @@ describe('Governance Action', () => {
         //wait for calm-down period
         await delay(lockPeriod * 1000)
 
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(false)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(true)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             owner.address
         )
@@ -480,12 +494,12 @@ describe('Governance Action', () => {
     })
 
     it('should remove signer', async () => {
-        let res1 = await securityModuleProxy.isSigner(
+        let res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(true)
-        let tx = await securityModuleProxy
+        let tx = await proxiedSerurityModule
             .connect(user3)
             .removeSigner(wallet1.address, user2.address)
         await tx.wait()
@@ -493,17 +507,17 @@ describe('Governance Action', () => {
         //wait for calm-down period
         await delay(lockPeriod * 1000)
 
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(false)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(false)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             owner.address
         )
@@ -512,52 +526,52 @@ describe('Governance Action', () => {
 
     it('should add signer', async () => {
         // add user1 to signer
-        let res1 = await securityModuleProxy.isSigner(
+        let res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(false)
-        let tx = await securityModuleProxy
+        let tx = await proxiedSerurityModule
             .connect(user3)
             .addSigner(wallet1.address, user2.address)
         await tx.wait()
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(false)
 
         await expect(
-            securityModuleProxy
+            proxiedSerurityModule
                 .connect(user3)
                 .addSigner(wallet1.address, user1.address)
         ).to.be.revertedWith('BM: wallet locked by signer related operation')
 
         // test lock: we can call lock to add global lock even though addSigner had added a signer related lock.
-        tx = await securityModuleProxy.connect(user3).lock(wallet1.address)
+        tx = await proxiedSerurityModule.connect(user3).lock(wallet1.address)
         //await tx.wait()
 
-        let lockFlag = await securityModuleProxy.isLocked(wallet1.address)
+        let lockFlag = await proxiedSerurityModule.isLocked(wallet1.address)
         expect(lockFlag).eq(3)
 
         //wait for calm-down period
         await delay(lockPeriod * 1000)
 
-        tx = await securityModuleProxy
+        tx = await proxiedSerurityModule
             .connect(user3)
             .addSigner(wallet1.address, user1.address)
         await tx.wait()
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user1.address
         )
         expect(res1).eq(true)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             user2.address
         )
         expect(res1).eq(true)
-        res1 = await securityModuleProxy.isSigner(
+        res1 = await proxiedSerurityModule.isSigner(
             wallet1.address,
             owner.address
         )
@@ -565,12 +579,14 @@ describe('Governance Action', () => {
     })
 
     it('test lock', async () => {
-        let tx = await securityModuleProxy.connect(user3).lock(wallet1.address)
+        let tx = await proxiedSerurityModule
+            .connect(user3)
+            .lock(wallet1.address)
         await tx.wait()
 
         // When the user call the global lock, he or she can't add other locks until the global lock is released.
         await expect(
-            securityModuleProxy
+            proxiedSerurityModule
                 .connect(user3)
                 .removeSigner(wallet1.address, user1.address)
         ).to.be.revertedWith('BM: wallet locked globally')
