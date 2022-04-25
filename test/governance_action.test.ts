@@ -6,6 +6,7 @@ const {
     solidity,
     MockProvider,
     createFixtureLoader,
+    deployContract,
 } = require('ethereum-waffle')
 chai.use(solidity)
 const { expect } = chai
@@ -31,6 +32,8 @@ let user1
 let user2
 let user3
 let sequenceId
+let loadFixture
+// let wallet
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
     'function initialize(address, uint, uint)',
@@ -61,7 +64,7 @@ async function mineBlock(
     provider: providers.Web3Provider,
     timestamp: number
 ): Promise<void> {
-    return provider.send('evm_mine', [timestamp])
+    return provider.send('evm_increaseTime', [timestamp])
 }
 
 function expandTo18Decimals(n: number): BigNumber {
@@ -74,6 +77,11 @@ describe('Governance Action', () => {
         user1 = Wallet.createRandom().connect(provider)
         user2 = Wallet.createRandom().connect(provider)
         user3 = Wallet.createRandom().connect(provider)
+
+        let wallet = owner
+
+        console.log('Loading fixture with: ', wallet)
+        loadFixture = createFixtureLoader([wallet], provider)
 
         let factory = await ethers.getContractFactory('ModuleRegistry')
         moduleRegistry = await factory.deploy()
@@ -159,6 +167,10 @@ describe('Governance Action', () => {
         await initTx.wait()
     })
 
+    let governanceToken: Contract
+    let timelock: Contract
+    let governorAlpha: Contract
+
     beforeEach(async function () {
         await (
             await owner.sendTransaction({
@@ -197,6 +209,12 @@ describe('Governance Action', () => {
         )
 
         await securityModuleProxy.setImplementation(securityModule.address)
+
+        // FIXME: Enable this will make the test case fail
+        // const fixture = await loadFixture(governanceFixture)
+        // governanceToken = fixture.governanceToken
+        // timelock = fixture.timelock
+        // governorAlpha = fixture.governorAlpha
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
@@ -603,4 +621,69 @@ describe('Governance Action', () => {
                 .removeSigner(wallet1.address, user1.address)
         ).to.be.revertedWith('BM: wallet locked globally')
     })
+
+    // it('update a new security module with GovernanceAlpha', async () => {
+    //     let factory = await ethers.getContractFactory('SecurityModule')
+    //     let securityModule = await factory.deploy()
+    //     await securityModule.deployed()
+    //     console.log(
+    //         'A New SecurityModule is deployed at: ',
+    //         securityModule.address
+    //     )
+
+    //     const target = securityModule.address
+    //     const value = 0
+    //     const signature = 'setImplementation(address)'
+    //     const calldata = utils.defaultAbiCoder.encode(
+    //         ['address'],
+    //         [timelock.address]
+    //     )
+    //     const description = 'Update a new Security Module'
+
+    //     // activate balances
+    //     await governanceToken.delegate(wallet.address)
+    //     const { timestamp: now } = await provider.getBlock('latest')
+    //     console.log('Before mineBlock')
+    //     await mineBlock(provider, now)
+    //     console.log('After mineBlock')
+
+    //     const proposalId = await governorAlpha.callStatic.propose(
+    //         [target],
+    //         [value],
+    //         [signature],
+    //         [calldata],
+    //         description
+    //     )
+    //     await governorAlpha.propose(
+    //         [target],
+    //         [value],
+    //         [signature],
+    //         [calldata],
+    //         description
+    //     )
+
+    //     // overcome votingDelay
+    //     await mineBlock(provider, now)
+
+    //     await governorAlpha.castVote(proposalId, true)
+
+    //     // TODO fix if possible, this is really annoying
+    //     // overcome votingPeriod
+    //     const votingPeriod = await governorAlpha
+    //         .votingPeriod()
+    //         .then((votingPeriod: BigNumber) => votingPeriod.toNumber())
+    //     await Promise.all(
+    //         new Array(votingPeriod).fill(0).map(() => mineBlock(provider, now))
+    //     )
+
+    //     await governorAlpha.queue(proposalId)
+
+    //     const eta = now + DELAY + 60 // give a minute margin
+    //     await mineBlock(provider, eta)
+
+    //     await governorAlpha.execute(proposalId)
+
+    //     // const feeTo = await factory.feeTo()
+    //     // expect(feeTo).to.be.eq(timelock.address)
+    // }).timeout(500000)
 })
