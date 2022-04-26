@@ -107,19 +107,33 @@ describe('Governance Token', () => {
             )
         )
 
-        const { v, r, s } = ecsign(
-            Buffer.from(digest.slice(2), 'hex'),
-            Buffer.from(wallet.privateKey.slice(2), 'hex')
-        )
+        // const { v, r, s } = ecsign(
+        //     Buffer.from(digest.slice(2), 'hex'),
+        //     Buffer.from(wallet.privateKey.slice(2), 'hex')
+        // )
+
+        // Sign the string message
+        console.log('digest: ', digest)
+
+        let flatSig = await wallet.signMessage(ethers.utils.arrayify(digest))
+
+        console.log('flatSig: ', flatSig)
+
+        // For Solidity, we need the expanded-format of a signature
+        let sig = ethers.utils.splitSignature(flatSig)
+
+        console.log('v: ', sig.v)
+        console.log('r: ', sig.r)
+        console.log('s: ', sig.s)
 
         await governanceToken.permit(
             owner,
             spender,
             value,
             deadline,
-            v,
-            utils.hexlify(r),
-            utils.hexlify(s)
+            sig.v,
+            sig.r,
+            sig.s
         )
 
         expect(await governanceToken.allowance(owner, spender)).to.eq(value)
