@@ -9,6 +9,8 @@ import {
 } from 'ethereum-waffle'
 import { ecsign } from 'ethereumjs-util'
 
+const hre = require('hardhat')
+
 import { governanceFixture } from './fixtures'
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
@@ -26,6 +28,8 @@ const PERMIT_TYPEHASH = utils.keccak256(
     )
 )
 
+const provider = waffle.provider
+
 async function mineBlock(
     provider: providers.Web3Provider,
     timestamp: number
@@ -38,18 +42,16 @@ function expandTo18Decimals(n: number): BigNumber {
 }
 
 describe('Governance Token', () => {
-    const provider = new MockProvider({
-        ganacheOptions: {
-            hardfork: 'istanbul',
-            mnemonic:
-                'horn horn horn horn horn horn horn horn horn horn horn horn',
-            gasLimit: 9999999,
-        },
-    })
-    const [wallet, other0, other1] = provider.getWallets()
-
     let governanceToken: Contract
-    const loadFixture = createFixtureLoader([wallet], provider)
+
+    let wallet
+    let other0
+    let other1
+    let loadFixture
+    before(async () => {
+        ;[wallet, other0, other1] = await hre.ethers.getSigners()
+        loadFixture = createFixtureLoader([wallet], provider)
+    })
 
     beforeEach(async function () {
         const fixture = await loadFixture(governanceFixture)

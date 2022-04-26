@@ -45,16 +45,7 @@ let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
 describe('GovernorAlpha', () => {
-    // const provider = new MockProvider({
-    //     ganacheOptions: {
-    //         hardfork: 'istanbul',
-    //         mnemonic:
-    //             'horn horn horn horn horn horn horn horn horn horn horn horn',
-    //         gasLimit: 9999999,
-    //     },
-    // })
     let wallet
-
     let loadFixture
     before(async () => {
         ;[wallet] = await hre.ethers.getSigners()
