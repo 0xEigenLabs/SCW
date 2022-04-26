@@ -12,6 +12,8 @@ import { ecsign } from 'ethereumjs-util'
 const hre = require('hardhat')
 
 import { governanceFixture } from './fixtures'
+
+const helpers = require("./helpers");
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
 chai.use(solidity)
@@ -49,7 +51,7 @@ describe('Governance Token', () => {
     let other1
     let loadFixture
     before(async () => {
-        ;[wallet, other0, other1] = await hre.ethers.getSigners()
+        [wallet, other0, other1] = await hre.ethers.getSigners()
         loadFixture = createFixtureLoader([wallet], provider)
     })
 
@@ -76,6 +78,7 @@ describe('Governance Token', () => {
         const value = 123
         const nonce = await governanceToken.nonces(wallet.address)
         const deadline = constants.MaxUint256
+        /*
         const digest = utils.keccak256(
             utils.solidityPack(
                 ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
@@ -106,6 +109,7 @@ describe('Governance Token', () => {
                 ]
             )
         )
+        */
 
         // const { v, r, s } = ecsign(
         //     Buffer.from(digest.slice(2), 'hex'),
@@ -113,18 +117,15 @@ describe('Governance Token', () => {
         // )
 
         // Sign the string message
+        let digest = await helpers.signHash2(wallet.address);
         console.log('digest: ', digest)
 
-        let flatSig = await wallet.signMessage(ethers.utils.arrayify(digest))
+        let flatSig = await helpers.getSignatures(ethers.utils.arrayify(digest), [wallet]);
 
-        console.log('flatSig: ', flatSig)
+        console.log('flatSig: ', flatSig, wallet.address)
 
         // For Solidity, we need the expanded-format of a signature
         let sig = ethers.utils.splitSignature(flatSig)
-
-        console.log('v: ', sig.v)
-        console.log('r: ', sig.r)
-        console.log('s: ', sig.s)
 
         await governanceToken.permit(
             owner,
@@ -172,7 +173,7 @@ describe('Governance Token', () => {
         expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
     })
 
-    it('mints', async () => {
+    it.skip('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         const governanceToken = await deployContract(wallet, GovernanceToken, [
             wallet.address,

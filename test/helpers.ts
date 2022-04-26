@@ -62,6 +62,17 @@ export const signHash = async (destinationAddr, value, data, nonce) => {
     return ethers.utils.keccak256(input);
 }
 
+// TODO: hash all the governace message, @weber
+export const signHash2 = async (destinationAddr) => {
+    const input = `0x${[
+        "0x19",
+        "0x00",
+        destinationAddr,
+    ].map((hex) => hex.slice(2)).join("")}`;
+
+    return ethers.utils.keccak256(input);
+}
+
 export async function getSignatures(messageHash, signers, returnBadSignatures = false) {
     // Sort the signers
     let sortedSigners = signers;
