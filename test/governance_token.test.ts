@@ -110,17 +110,6 @@ describe('Governance Token', () => {
             Buffer.from(wallet.privateKey.slice(2), 'hex')
         )
 
-        console.log(
-            'Going to call permit: ',
-            owner,
-            spender,
-            value,
-            deadline,
-            v,
-            utils.hexlify(r),
-            utils.hexlify(s)
-        )
-
         await governanceToken.permit(
             owner,
             spender,
@@ -131,7 +120,6 @@ describe('Governance Token', () => {
             utils.hexlify(s)
         )
 
-        console.log('Success to call permit')
         expect(await governanceToken.allowance(owner, spender)).to.eq(value)
         expect(await governanceToken.nonces(owner)).to.eq(1)
 
