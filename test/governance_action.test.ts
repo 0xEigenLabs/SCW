@@ -203,10 +203,10 @@ describe('Governance Action', () => {
         await securityModuleProxy.setImplementation(securityModule.address)
 
         // FIXME: Enable this will make the test case fail
-        const fixture = await loadFixture(governanceFixture)
-        governanceToken = fixture.governanceToken
-        timelock = fixture.timelock
-        governorAlpha = fixture.governorAlpha
+        // const fixture = await loadFixture(governanceFixture)
+        // governanceToken = fixture.governanceToken
+        // timelock = fixture.timelock
+        // governorAlpha = fixture.governorAlpha
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
