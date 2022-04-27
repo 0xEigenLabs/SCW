@@ -13,7 +13,7 @@ const hre = require('hardhat')
 
 import { governanceFixture } from './fixtures'
 
-const helpers = require("./helpers");
+const helpers = require('./helpers')
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
 chai.use(solidity)
@@ -51,7 +51,7 @@ describe('Governance Token', () => {
     let other1
     let loadFixture
     before(async () => {
-        [wallet, other0, other1] = await hre.ethers.getSigners()
+        ;[wallet, other0, other1] = await hre.ethers.getSigners()
         loadFixture = createFixtureLoader([wallet], provider)
     })
 
@@ -61,68 +61,29 @@ describe('Governance Token', () => {
     })
 
     it('permit', async () => {
-        const domainSeparator = utils.keccak256(
-            utils.defaultAbiCoder.encode(
-                ['bytes32', 'bytes32', 'uint256', 'address'],
-                [
-                    DOMAIN_TYPEHASH,
-                    utils.keccak256(utils.toUtf8Bytes('GovernanceToken')),
-                    1,
-                    governanceToken.address,
-                ]
-            )
-        )
-
         const owner = wallet.address
         const spender = other0.address
         const value = 123
         const nonce = await governanceToken.nonces(wallet.address)
         const deadline = constants.MaxUint256
-        /*
-        const digest = utils.keccak256(
-            utils.solidityPack(
-                ['bytes1', 'bytes1', 'bytes32', 'bytes32'],
-                [
-                    '0x19',
-                    '0x01',
-                    domainSeparator,
-                    utils.keccak256(
-                        utils.defaultAbiCoder.encode(
-                            [
-                                'bytes32',
-                                'address',
-                                'address',
-                                'uint256',
-                                'uint256',
-                                'uint256',
-                            ],
-                            [
-                                PERMIT_TYPEHASH,
-                                owner,
-                                spender,
-                                value,
-                                nonce,
-                                deadline,
-                            ]
-                        )
-                    ),
-                ]
-            )
-        )
-        */
-
-        // const { v, r, s } = ecsign(
-        //     Buffer.from(digest.slice(2), 'hex'),
-        //     Buffer.from(wallet.privateKey.slice(2), 'hex')
-        // )
+        const network = await provider.getNetwork()
+        const chain_id = network.chainId
 
         // Sign the string message
-        let digest = await helpers.signHash2(wallet.address);
-        console.log('digest: ', digest)
+        let digest = await helpers.signHashForGovernanceToken(
+            governanceToken.address,
+            chain_id,
+            owner,
+            spender,
+            value,
+            nonce,
+            deadline
+        )
 
-        let flatSig = await helpers.getSignatures(ethers.utils.arrayify(digest), [wallet]);
-
-        console.log('flatSig: ', flatSig, wallet.address)
+        let flatSig = await helpers.getSignatures(
+            ethers.utils.arrayify(digest),
+            [wallet]
+        )
 
         // For Solidity, we need the expanded-format of a signature
         let sig = ethers.utils.splitSignature(flatSig)

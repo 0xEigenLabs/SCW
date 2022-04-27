@@ -274,12 +274,26 @@ contract GovernanceToken {
             )
         );
         // TODO calculate digest @weber, refer to securityModule.getHash
-        bytes32 digest = keccak256(
-            abi.encodePacked('\x19\x01', domainSeparator, structHash)
+        bytes32 hash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                domainSeparator,
+                structHash
+            )
         );
 
-        bytes32 hash = keccak256(abi.encodePacked(bytes1(0x19), bytes1(0), owner /*TODO digest*/));
-        address signatory = ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)), v, r, s);
+        // bytes32 hash = keccak256(
+        //     abi.encodePacked(bytes1(0x19), bytes1(0), owner, digest)
+        // );
+        address signatory = ecrecover(
+            keccak256(
+                abi.encodePacked('\x19Ethereum Signed Message:\n32', hash)
+            ),
+            v,
+            r,
+            s
+        );
         require(
             signatory != address(0),
             'GovernanceToken::permit: invalid signature'

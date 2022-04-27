@@ -62,15 +62,51 @@ export const signHash = async (destinationAddr, value, data, nonce) => {
     return ethers.utils.keccak256(input);
 }
 
-// TODO: hash all the governace message, @weber
-export const signHash2 = async (destinationAddr) => {
-    const input = `0x${[
-        "0x19",
-        "0x00",
-        destinationAddr,
-    ].map((hex) => hex.slice(2)).join("")}`;
+export const DOMAIN_TYPEHASH = utils.keccak256(
+    utils.toUtf8Bytes(
+        'EIP712Domain(string name,uint256 chainId,address verifyingContract)'
+    )
+)
 
-    return ethers.utils.keccak256(input);
+export const PERMIT_TYPEHASH = utils.keccak256(
+    utils.toUtf8Bytes(
+        'Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'
+    )
+)
+
+export const signHashForGovernanceToken = async (
+    token_address,
+    chain_id,
+    owner,
+    spender,
+    value,
+    nonce,
+    deadline
+) => {
+    const domainSeparator = utils.keccak256(
+        utils.defaultAbiCoder.encode(
+            ['bytes32', 'bytes32', 'uint256', 'address'],
+            [
+                DOMAIN_TYPEHASH,
+                utils.keccak256(utils.toUtf8Bytes('GovernanceToken')),
+                chain_id,
+                token_address,
+            ]
+        )
+    )
+
+    const structHash = utils.keccak256(
+        utils.defaultAbiCoder.encode(
+            ['bytes32', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+            [PERMIT_TYPEHASH, owner, spender, value, nonce, deadline]
+        )
+    )
+
+    const input = `0x${['0x19', '0x01', domainSeparator, structHash]
+        .map((hex) => hex.slice(2))
+        .join('')}`
+
+    return ethers.utils.keccak256(input)
 }
 
 export async function getSignatures(messageHash, signers, returnBadSignatures = false) {
