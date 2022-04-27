@@ -4,7 +4,6 @@ import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
 const chai = require('chai')
 const {
     solidity,
-    MockProvider,
     createFixtureLoader,
     deployContract,
 } = require('ethereum-waffle')
@@ -52,7 +51,7 @@ import { SecurityModule__factory } from '../typechain/factories/SecurityModule__
 
 import { Contract, constants } from 'ethers'
 
-import { governanceFixture } from './fixtures'
+import { governanceFixture, mineBlock } from './fixtures'
 
 const DELAY = 60 * 60 * 24 * 2
 let lockPeriod = 5 //s
@@ -60,25 +59,19 @@ let recoveryPeriod = 120 //s
 let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
-async function mineBlock(
-    provider: providers.Web3Provider,
-    timestamp: number
-): Promise<void> {
-    return provider.send('evm_increaseTime', [timestamp])
-}
-
 function expandTo18Decimals(n: number): BigNumber {
     return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
 }
 
 describe('Governance Action', () => {
+    let wallet
     before(async () => {
         owner = await ethers.getSigner()
         user1 = Wallet.createRandom().connect(provider)
         user2 = Wallet.createRandom().connect(provider)
         user3 = Wallet.createRandom().connect(provider)
 
-        let wallet = owner
+        wallet = owner
 
         loadFixture = createFixtureLoader([wallet], provider)
 
@@ -210,10 +203,10 @@ describe('Governance Action', () => {
         await securityModuleProxy.setImplementation(securityModule.address)
 
         // FIXME: Enable this will make the test case fail
-        // const fixture = await loadFixture(governanceFixture)
-        // governanceToken = fixture.governanceToken
-        // timelock = fixture.timelock
-        // governorAlpha = fixture.governorAlpha
+        const fixture = await loadFixture(governanceFixture)
+        governanceToken = fixture.governanceToken
+        timelock = fixture.timelock
+        governorAlpha = fixture.governorAlpha
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
@@ -621,68 +614,68 @@ describe('Governance Action', () => {
         ).to.be.revertedWith('BM: wallet locked globally')
     })
 
-    // it('update a new security module with GovernanceAlpha', async () => {
-    //     let factory = await ethers.getContractFactory('SecurityModule')
-    //     let securityModule = await factory.deploy()
-    //     await securityModule.deployed()
-    //     console.log(
-    //         'A New SecurityModule is deployed at: ',
-    //         securityModule.address
-    //     )
+    it.skip('update a new security module with GovernanceAlpha', async () => {
+        let factory = await ethers.getContractFactory('SecurityModule')
+        let securityModule = await factory.deploy()
+        await securityModule.deployed()
+        console.log(
+            'A New SecurityModule is deployed at: ',
+            securityModule.address
+        )
 
-    //     const target = securityModule.address
-    //     const value = 0
-    //     const signature = 'setImplementation(address)'
-    //     const calldata = utils.defaultAbiCoder.encode(
-    //         ['address'],
-    //         [timelock.address]
-    //     )
-    //     const description = 'Update a new Security Module'
+        const target = securityModule.address
+        const value = 0
+        const signature = 'setImplementation(address)'
+        const calldata = utils.defaultAbiCoder.encode(
+            ['address'],
+            [timelock.address]
+        )
+        const description = 'Update a new Security Module'
 
-    //     // activate balances
-    //     await governanceToken.delegate(wallet.address)
-    //     const { timestamp: now } = await provider.getBlock('latest')
-    //     console.log('Before mineBlock')
-    //     await mineBlock(provider, now)
-    //     console.log('After mineBlock')
+        // activate balances
+        await governanceToken.delegate(wallet.address)
+        const { timestamp: now } = await provider.getBlock('latest')
+        console.log('Before mineBlock')
+        await mineBlock(provider, now)
+        console.log('After mineBlock')
 
-    //     const proposalId = await governorAlpha.callStatic.propose(
-    //         [target],
-    //         [value],
-    //         [signature],
-    //         [calldata],
-    //         description
-    //     )
-    //     await governorAlpha.propose(
-    //         [target],
-    //         [value],
-    //         [signature],
-    //         [calldata],
-    //         description
-    //     )
+        const proposalId = await governorAlpha.callStatic.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
+        await governorAlpha.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
 
-    //     // overcome votingDelay
-    //     await mineBlock(provider, now)
+        // overcome votingDelay
+        await mineBlock(provider, now)
 
-    //     await governorAlpha.castVote(proposalId, true)
+        await governorAlpha.castVote(proposalId, true)
 
-    //     // TODO fix if possible, this is really annoying
-    //     // overcome votingPeriod
-    //     const votingPeriod = await governorAlpha
-    //         .votingPeriod()
-    //         .then((votingPeriod: BigNumber) => votingPeriod.toNumber())
-    //     await Promise.all(
-    //         new Array(votingPeriod).fill(0).map(() => mineBlock(provider, now))
-    //     )
+        // TODO fix if possible, this is really annoying
+        // overcome votingPeriod
+        const votingPeriod = await governorAlpha
+            .votingPeriod()
+            .then((votingPeriod: BigNumber) => votingPeriod.toNumber())
+        await Promise.all(
+            new Array(votingPeriod).fill(0).map(() => mineBlock(provider, now))
+        )
 
-    //     await governorAlpha.queue(proposalId)
+        await governorAlpha.queue(proposalId)
 
-    //     const eta = now + DELAY + 60 // give a minute margin
-    //     await mineBlock(provider, eta)
+        const eta = now + DELAY + 60 // give a minute margin
+        await mineBlock(provider, eta)
 
-    //     await governorAlpha.execute(proposalId)
+        await governorAlpha.execute(proposalId)
 
-    //     // const feeTo = await factory.feeTo()
-    //     // expect(feeTo).to.be.eq(timelock.address)
-    // }).timeout(500000)
+        // const feeTo = await factory.feeTo()
+        // expect(feeTo).to.be.eq(timelock.address)
+    }).timeout(500000)
 })

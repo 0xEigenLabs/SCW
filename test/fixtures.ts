@@ -32,7 +32,7 @@ export async function governanceFixture(
     [wallet]: Wallet[],
     provider: providers.Web3Provider
 ): Promise<GovernanceFixture> {
-    // deploy UNI, sending the total supply to the deployer
+    // deploy GovernanceToken, sending the total supply to the deployer
     const { timestamp: now } = await provider.getBlock('latest')
     let transactionCount = await wallet.getTransactionCount()
 
