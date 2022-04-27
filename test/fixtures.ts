@@ -12,7 +12,7 @@ export async function mineBlock(
     provider: providers.Web3Provider,
     timestamp: number
 ): Promise<void> {
-    return provider.send('evm_mine', [timestamp])
+    return provider.send('evm_increaseTime', [timestamp])
 }
 
 export function expandTo18Decimals(n: number): BigNumber {

@@ -1,43 +1,18 @@
 import chai, { expect } from 'chai'
 import { BigNumber, Contract, constants, utils, providers } from 'ethers'
 const { waffle, ethers } = require('hardhat')
-import {
-    solidity,
-    MockProvider,
-    createFixtureLoader,
-    deployContract,
-} from 'ethereum-waffle'
-import { ecsign } from 'ethereumjs-util'
+import { solidity, createFixtureLoader, deployContract } from 'ethereum-waffle'
 
 const hre = require('hardhat')
 
-import { governanceFixture } from './fixtures'
+import { governanceFixture, mineBlock } from './fixtures'
 
 const helpers = require('./helpers')
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
 chai.use(solidity)
 
-const DOMAIN_TYPEHASH = utils.keccak256(
-    utils.toUtf8Bytes(
-        'EIP712Domain(string name,uint256 chainId,address verifyingContract)'
-    )
-)
-
-const PERMIT_TYPEHASH = utils.keccak256(
-    utils.toUtf8Bytes(
-        'Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'
-    )
-)
-
 const provider = waffle.provider
-
-async function mineBlock(
-    provider: providers.Web3Provider,
-    timestamp: number
-): Promise<void> {
-    return provider.send('evm_mine', [timestamp])
-}
 
 function expandTo18Decimals(n: number): BigNumber {
     return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
@@ -134,7 +109,7 @@ describe('Governance Token', () => {
         expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
     })
 
-    it.skip('mints', async () => {
+    it('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         const governanceToken = await deployContract(wallet, GovernanceToken, [
             wallet.address,
@@ -148,7 +123,7 @@ describe('Governance Token', () => {
         ).to.be.revertedWith('GovernanceToken::mint: minting not allowed yet')
 
         let timestamp = await governanceToken.mintingAllowedAfter()
-        await mineBlock(provider, timestamp.toString())
+        await mineBlock(provider, timestamp.toNumber())
 
         await expect(
             governanceToken.connect(other1).mint(other1.address, 1)
@@ -171,7 +146,7 @@ describe('Governance Token', () => {
         )
 
         timestamp = await governanceToken.mintingAllowedAfter()
-        await mineBlock(provider, timestamp.toString())
+        await mineBlock(provider, timestamp.toNumber())
         // cannot mint 2.01%
         await expect(
             governanceToken.mint(wallet.address, supply.mul(mintCap.add(1)))

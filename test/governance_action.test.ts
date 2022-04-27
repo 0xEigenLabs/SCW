@@ -80,7 +80,6 @@ describe('Governance Action', () => {
 
         let wallet = owner
 
-        console.log('Loading fixture with: ', wallet)
         loadFixture = createFixtureLoader([wallet], provider)
 
         let factory = await ethers.getContractFactory('ModuleRegistry')
