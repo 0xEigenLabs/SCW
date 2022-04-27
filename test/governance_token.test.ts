@@ -109,7 +109,7 @@ describe('Governance Token', () => {
         expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
     })
 
-    it('mints', async () => {
+    it.skip('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         const governanceToken = await deployContract(wallet, GovernanceToken, [
             wallet.address,
