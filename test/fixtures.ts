@@ -12,7 +12,8 @@ export async function mineBlock(
     provider: providers.Web3Provider,
     timestamp: number
 ): Promise<void> {
-    return provider.send('evm_increaseTime', [timestamp])
+    const { timestamp: now } = await provider.getBlock('latest')
+    return provider.send('evm_increaseTime', [timestamp - now])
 }
 
 export function expandTo18Decimals(n: number): BigNumber {

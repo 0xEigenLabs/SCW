@@ -111,6 +111,7 @@ describe('Governance Token', () => {
 
     it.skip('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
+        console.log('Now is: ', now)
         const governanceToken = await deployContract(wallet, GovernanceToken, [
             wallet.address,
             wallet.address,
@@ -124,6 +125,8 @@ describe('Governance Token', () => {
 
         let timestamp = await governanceToken.mintingAllowedAfter()
         await mineBlock(provider, timestamp.toNumber())
+        const { timestamp: now1 } = await provider.getBlock('latest')
+        console.log('After 1st mine, Now is: ', now1)
 
         await expect(
             governanceToken.connect(other1).mint(other1.address, 1)
@@ -147,6 +150,8 @@ describe('Governance Token', () => {
 
         timestamp = await governanceToken.mintingAllowedAfter()
         await mineBlock(provider, timestamp.toNumber())
+        const { timestamp: now2 } = await provider.getBlock('latest')
+        console.log('After 2nd mine, Now is: ', now2)
         // cannot mint 2.01%
         await expect(
             governanceToken.mint(wallet.address, supply.mul(mintCap.add(1)))
