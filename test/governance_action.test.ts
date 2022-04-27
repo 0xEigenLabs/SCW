@@ -675,7 +675,7 @@ describe('Governance Action', () => {
 
         await governorAlpha.execute(proposalId)
 
-        // const feeTo = await factory.feeTo()
-        // expect(feeTo).to.be.eq(timelock.address)
+        const impl = await factory.getImplementation()
+        expect(impl).to.be.eq(timelock.address)
     }).timeout(500000)
 })

@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
-import "./IModuleProxy.sol";
+import './IModuleProxy.sol';
 
 contract ModuleProxy is IModuleProxy {
     address public implementation;
 
     function setImplementation(address _imp) external override {
         implementation = _imp;
+    }
+
+    function getImplementation() external view returns (address) {
+        return implementation;
     }
 
     function _delegate(address _imp) internal virtual {
