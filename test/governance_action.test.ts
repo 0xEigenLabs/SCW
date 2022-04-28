@@ -2,11 +2,7 @@ const { waffle, ethers } = require('hardhat')
 import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
 
 const chai = require('chai')
-const {
-    solidity,
-    createFixtureLoader,
-    deployContract,
-} = require('ethereum-waffle')
+const { solidity } = require('ethereum-waffle')
 chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
@@ -70,8 +66,6 @@ describe('Governance Action', () => {
         user3 = Wallet.createRandom().connect(provider)
 
         wallet = owner
-
-        loadFixture = createFixtureLoader([wallet], provider)
 
         let factory = await ethers.getContractFactory('ModuleRegistry')
         moduleRegistry = await factory.deploy()
