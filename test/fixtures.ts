@@ -1,6 +1,7 @@
 import chai, { expect } from 'chai'
+const { waffle, ethers } = require('hardhat')
 import { Contract, Wallet, providers, BigNumber } from 'ethers'
-import { solidity, deployContract } from 'ethereum-waffle'
+import { solidity } from 'ethereum-waffle'
 
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 import Timelock from '../artifacts/contracts/Timelock.sol/Timelock.json'
@@ -32,7 +33,6 @@ export async function governanceFixture(
     [wallet]: Wallet[],
     provider: providers.Web3Provider
 ): Promise<GovernanceFixture> {
-    // deploy GovernanceToken, sending the total supply to the deployer
     const { timestamp: now } = await provider.getBlock('latest')
     let transactionCount = await wallet.getTransactionCount()
 
@@ -40,12 +40,14 @@ export async function governanceFixture(
         from: wallet.address,
         nonce: transactionCount + 1,
     })
-    const governanceToken = await deployContract(wallet, GovernanceToken, [
+
+    let factory = await ethers.getContractFactory('GovernanceToken')
+    const governanceToken = await factory.deploy(
         wallet.address,
         timelockAddress,
-        now + 60 * 60,
-    ])
-
+        now + 60 * 60
+    )
+    await governanceToken.deployed()
     transactionCount = await wallet.getTransactionCount()
 
     // deploy timelock, controlled by what will be the governor
@@ -53,17 +55,18 @@ export async function governanceFixture(
         from: wallet.address,
         nonce: transactionCount + 1,
     })
-    const timelock = await deployContract(wallet, Timelock, [
-        governorAlphaAddress,
-        DELAY,
-    ])
+    factory = await ethers.getContractFactory('Timelock')
+    const timelock = await factory.deploy(governorAlphaAddress, DELAY)
+    await timelock.deployed()
     expect(timelock.address).to.be.eq(timelockAddress)
 
     // deploy governorAlpha
-    const governorAlpha = await deployContract(wallet, GovernorAlpha, [
+    factory = await ethers.getContractFactory('GovernorAlpha')
+    const governorAlpha = await factory.deploy(
         timelock.address,
-        governanceToken.address,
-    ])
+        governanceToken.address
+    )
+    await governanceToken.deployed()
     expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
 
     return { governanceToken, timelock, governorAlpha }

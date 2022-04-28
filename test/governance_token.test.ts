@@ -1,7 +1,7 @@
 import chai, { expect } from 'chai'
 import { BigNumber, Contract, constants, utils, providers } from 'ethers'
 const { waffle, ethers } = require('hardhat')
-import { solidity, createFixtureLoader, deployContract } from 'ethereum-waffle'
+import { solidity, createFixtureLoader } from 'ethereum-waffle'
 
 const hre = require('hardhat')
 
@@ -112,11 +112,18 @@ describe('Governance Token', () => {
     it.skip('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         console.log('Now is: ', now)
-        const governanceToken = await deployContract(wallet, GovernanceToken, [
+        let factory = await ethers.getContractFactory('GovernanceToken')
+        const governanceToken = await factory.deploy(
             wallet.address,
             wallet.address,
-            now + 60 * 60,
-        ])
+            now + 60 * 60
+        )
+        await governanceToken.deployed()
+        // const governanceToken = await deployContract(wallet, GovernanceToken, [
+        //     wallet.address,
+        //     wallet.address,
+        //     now + 60 * 60,
+        // ])
         const supply = await governanceToken.totalSupply()
 
         await expect(
