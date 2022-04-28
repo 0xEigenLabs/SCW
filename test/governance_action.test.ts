@@ -50,7 +50,7 @@ import { Contract, constants } from 'ethers'
 const DELAY = 60 * 60 * 24 * 2
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
-let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
+let expireTime
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
 function expandTo18Decimals(n: number): BigNumber {
@@ -194,11 +194,8 @@ describe('Governance Action', () => {
 
         await securityModuleProxy.setImplementation(securityModule.address)
 
-        // FIXME: Enable this will make the test case fail
-        // const fixture = await loadFixture(governanceFixture)
-        // governanceToken = fixture.governanceToken
-        // timelock = fixture.timelock
-        // governorAlpha = fixture.governorAlpha
+        const { timestamp: now } = await provider.getBlock('latest')
+        expireTime = now + 1800
     })
 
     it("proxy change security module's lock period or recovery period", async function () {

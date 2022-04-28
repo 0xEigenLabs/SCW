@@ -40,7 +40,7 @@ const TMABI = [
 
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
-let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800; // 60 seconds
+let expireTime
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Transaction test", () => {
@@ -154,7 +154,9 @@ describe("Transaction test", () => {
 
         // let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
         // await res2.wait()
-        console.log("Wallet created", wallet1.address) 
+        console.log("Wallet created", wallet1.address)
+        const { timestamp: now } = await provider.getBlock('latest')
+        expireTime = now + 1800;
     })
 
     beforeEach(async function() {
@@ -165,7 +167,8 @@ describe("Transaction test", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
+        const { timestamp: now } = await provider.getBlock('latest')
+        expireTime = now + 1800;
     })
 
     it("change transaction module's daily upbound or large amount payment", async function() {
