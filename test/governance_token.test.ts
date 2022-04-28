@@ -1,7 +1,7 @@
 import chai, { expect } from 'chai'
 import { BigNumber, Contract, constants, utils, providers } from 'ethers'
 const { waffle, ethers } = require('hardhat')
-import { solidity, createFixtureLoader } from 'ethereum-waffle'
+import { solidity } from 'ethereum-waffle'
 
 const hre = require('hardhat')
 
@@ -22,10 +22,8 @@ describe('Governance Token', () => {
     let wallet
     let other0
     let other1
-    let loadFixture
     before(async () => {
         ;[wallet, other0, other1] = await hre.ethers.getSigners()
-        loadFixture = createFixtureLoader([wallet], provider)
     })
 
     beforeEach(async function () {
