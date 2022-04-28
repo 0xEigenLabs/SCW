@@ -105,7 +105,7 @@ describe('Governance Token', () => {
         expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
     })
 
-    it.skip('mints', async () => {
+    it('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         console.log('Now is: ', now)
         let factory = await ethers.getContractFactory('GovernanceToken')
