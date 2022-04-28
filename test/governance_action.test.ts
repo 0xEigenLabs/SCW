@@ -196,6 +196,12 @@ describe('Governance Action', () => {
 
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800
+
+        const fixture = await helpers.governanceFixture([wallet], provider)
+
+        governanceToken = fixture.governanceToken
+        timelock = fixture.timelock
+        governorAlpha = fixture.governorAlpha
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
@@ -603,7 +609,7 @@ describe('Governance Action', () => {
         ).to.be.revertedWith('BM: wallet locked globally')
     })
 
-    it.skip('update a new security module with GovernanceAlpha', async () => {
+    it('update a new security module with GovernanceAlpha', async () => {
         let factory = await ethers.getContractFactory('SecurityModule')
         let securityModule = await factory.deploy()
         await securityModule.deployed()
@@ -612,22 +618,28 @@ describe('Governance Action', () => {
             securityModule.address
         )
 
-        const target = securityModule.address
+        factory = await ethers.getContractFactory('ModuleProxy')
+        securityModuleProxy = await factory.deploy()
+        await securityModuleProxy.deployed()
+
+        console.log(
+            'The proxy of SecurityModule is deployed at: ',
+            securityModuleProxy.address
+        )
+
+        const target = securityModuleProxy.address
         const value = 0
         const signature = 'setImplementation(address)'
         const calldata = utils.defaultAbiCoder.encode(
             ['address'],
-            [timelock.address]
+            [securityModule.address]
         )
         const description = 'Update a new Security Module'
 
         // activate balances
         await governanceToken.delegate(wallet.address)
         const { timestamp: now } = await provider.getBlock('latest')
-        console.log('Before mineBlock')
         await helpers.mineBlock(provider, now)
-        console.log('After mineBlock')
-
         const proposalId = await governorAlpha.callStatic.propose(
             [target],
             [value],
@@ -635,6 +647,7 @@ describe('Governance Action', () => {
             [calldata],
             description
         )
+        console.log('The proposal id is ', proposalId)
         await governorAlpha.propose(
             [target],
             [value],
@@ -646,27 +659,29 @@ describe('Governance Action', () => {
         // overcome votingDelay
         await helpers.mineBlock(provider, now)
 
+        console.log('castVote true for the proposal')
         await governorAlpha.castVote(proposalId, true)
 
-        // TODO fix if possible, this is really annoying
-        // overcome votingPeriod
         const votingPeriod = await governorAlpha
             .votingPeriod()
             .then((votingPeriod: BigNumber) => votingPeriod.toNumber())
-        await Promise.all(
-            new Array(votingPeriod)
-                .fill(0)
-                .map(() => helpers.mineBlock(provider, now))
-        )
+        console.log('Voting period is ', votingPeriod)
+        // TODO fix if possible, this is really annoying
+        // overcome votingPeriod
+        for (let i = 0; i <= votingPeriod; i++) {
+            // console.log('Mine ', i)
+            await helpers.mineBlock(provider, now)
+        }
 
+        console.log('queue the proposal')
         await governorAlpha.queue(proposalId)
 
         const eta = now + DELAY + 60 // give a minute margin
         await helpers.mineBlock(provider, eta)
-
+        console.log('execute the proposal')
         await governorAlpha.execute(proposalId)
 
-        const impl = await factory.getImplementation()
-        expect(impl).to.be.eq(timelock.address)
+        const impl = await securityModuleProxy.getImplementation()
+        expect(impl).to.be.eq(securityModule.address)
     }).timeout(500000)
 })
