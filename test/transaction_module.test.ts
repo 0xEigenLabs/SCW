@@ -141,6 +141,8 @@ describe("Transaction test", () => {
         let iface = new ethers.utils.Interface(TMABI)
         let data = iface.encodeFunctionData("addModule", [moduleRegistry.address, wallet1.address, transactionModule.address, tmData])
         sequenceId = await wallet1.getNextSequenceId()
+        const { timestamp: now } = await provider.getBlock('latest')
+        expireTime = now + 1800;
         let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
         let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
         
@@ -155,8 +157,7 @@ describe("Transaction test", () => {
         // let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
         // await res2.wait()
         console.log("Wallet created", wallet1.address)
-        const { timestamp: now } = await provider.getBlock('latest')
-        expireTime = now + 1800;
+
     })
 
     beforeEach(async function() {
