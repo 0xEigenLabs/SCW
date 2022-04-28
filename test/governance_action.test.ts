@@ -51,8 +51,6 @@ import { SecurityModule__factory } from '../typechain/factories/SecurityModule__
 
 import { Contract, constants } from 'ethers'
 
-import { governanceFixture, mineBlock } from './fixtures'
-
 const DELAY = 60 * 60 * 24 * 2
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
@@ -636,7 +634,7 @@ describe('Governance Action', () => {
         await governanceToken.delegate(wallet.address)
         const { timestamp: now } = await provider.getBlock('latest')
         console.log('Before mineBlock')
-        await mineBlock(provider, now)
+        await helpers.mineBlock(provider, now)
         console.log('After mineBlock')
 
         const proposalId = await governorAlpha.callStatic.propose(
@@ -655,7 +653,7 @@ describe('Governance Action', () => {
         )
 
         // overcome votingDelay
-        await mineBlock(provider, now)
+        await helpers.mineBlock(provider, now)
 
         await governorAlpha.castVote(proposalId, true)
 
@@ -665,13 +663,15 @@ describe('Governance Action', () => {
             .votingPeriod()
             .then((votingPeriod: BigNumber) => votingPeriod.toNumber())
         await Promise.all(
-            new Array(votingPeriod).fill(0).map(() => mineBlock(provider, now))
+            new Array(votingPeriod)
+                .fill(0)
+                .map(() => helpers.mineBlock(provider, now))
         )
 
         await governorAlpha.queue(proposalId)
 
         const eta = now + DELAY + 60 // give a minute margin
-        await mineBlock(provider, eta)
+        await helpers.mineBlock(provider, eta)
 
         await governorAlpha.execute(proposalId)
 

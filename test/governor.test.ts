@@ -2,11 +2,7 @@ const { waffle, ethers } = require('hardhat')
 import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
 
 const chai = require('chai')
-const {
-    solidity,
-    MockProvider,
-    createFixtureLoader,
-} = require('ethereum-waffle')
+const { solidity, MockProvider } = require('ethereum-waffle')
 chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
@@ -36,8 +32,6 @@ const UMABI = [
 
 import { Contract, constants } from 'ethers'
 
-import { governanceFixture } from './fixtures'
-
 const DELAY = 60 * 60 * 24 * 2
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
@@ -46,14 +40,12 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
 describe('GovernorAlpha', () => {
     let wallet
-    let loadFixture
     before(async () => {
         ;[wallet] = await hre.ethers.getSigners()
-        loadFixture = createFixtureLoader([wallet], provider)
     })
 
     beforeEach(async function () {
-        const fixture = await loadFixture(governanceFixture)
+        const fixture = await helpers.governanceFixture([wallet], provider)
         governanceToken = fixture.governanceToken
         timelock = fixture.timelock
         governorAlpha = fixture.governorAlpha

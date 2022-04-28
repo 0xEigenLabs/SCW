@@ -5,8 +5,6 @@ import { solidity, createFixtureLoader } from 'ethereum-waffle'
 
 const hre = require('hardhat')
 
-import { governanceFixture, mineBlock } from './fixtures'
-
 const helpers = require('./helpers')
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
@@ -31,7 +29,7 @@ describe('Governance Token', () => {
     })
 
     beforeEach(async function () {
-        const fixture = await loadFixture(governanceFixture)
+        const fixture = await helpers.governanceFixture([wallet], provider)
         governanceToken = fixture.governanceToken
     })
 
@@ -119,11 +117,7 @@ describe('Governance Token', () => {
             now + 60 * 60
         )
         await governanceToken.deployed()
-        // const governanceToken = await deployContract(wallet, GovernanceToken, [
-        //     wallet.address,
-        //     wallet.address,
-        //     now + 60 * 60,
-        // ])
+
         const supply = await governanceToken.totalSupply()
 
         await expect(
@@ -131,7 +125,7 @@ describe('Governance Token', () => {
         ).to.be.revertedWith('GovernanceToken::mint: minting not allowed yet')
 
         let timestamp = await governanceToken.mintingAllowedAfter()
-        await mineBlock(provider, timestamp.toNumber())
+        await helpers.mineBlock(provider, timestamp.toNumber())
         const { timestamp: now1 } = await provider.getBlock('latest')
         console.log('After 1st mine, Now is: ', now1)
 
@@ -156,7 +150,7 @@ describe('Governance Token', () => {
         )
 
         timestamp = await governanceToken.mintingAllowedAfter()
-        await mineBlock(provider, timestamp.toNumber())
+        await helpers.mineBlock(provider, timestamp.toNumber())
         const { timestamp: now2 } = await provider.getBlock('latest')
         console.log('After 2nd mine, Now is: ', now2)
         // cannot mint 2.01%
