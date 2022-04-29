@@ -41,7 +41,7 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 describe('GovernorAlpha', () => {
     let wallet
     before(async () => {
-        ;[wallet] = await hre.ethers.getSigners()
+        [wallet] = await hre.ethers.getSigners()
     })
 
     beforeEach(async function () {
