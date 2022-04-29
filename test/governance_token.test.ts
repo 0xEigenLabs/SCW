@@ -12,10 +12,6 @@ chai.use(solidity)
 
 const provider = waffle.provider
 
-function expandTo18Decimals(n: number): BigNumber {
-    return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
-}
-
 describe('Governance Token', () => {
     let governanceToken: Contract
 
@@ -78,8 +74,14 @@ describe('Governance Token', () => {
     })
 
     it('nested delegation', async () => {
-        await governanceToken.transfer(other0.address, expandTo18Decimals(1))
-        await governanceToken.transfer(other1.address, expandTo18Decimals(2))
+        await governanceToken.transfer(
+            other0.address,
+            ethers.utils.parseEther(1)
+        )
+        await governanceToken.transfer(
+            other1.address,
+            ethers.utils.parseEther(2)
+        )
 
         let currectVotes0 = await governanceToken.getCurrentVotes(
             other0.address
@@ -92,17 +94,17 @@ describe('Governance Token', () => {
 
         await governanceToken.connect(other0).delegate(other1.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
-        expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
+        expect(currectVotes1).to.be.eq(ethers.utils.parseEther(1))
 
         await governanceToken.connect(other1).delegate(other1.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(
-            expandTo18Decimals(1).add(expandTo18Decimals(2))
+            ethers.utils.parseEther(1).add(ethers.utils.parseEther(2))
         )
 
         await governanceToken.connect(other1).delegate(wallet.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
-        expect(currectVotes1).to.be.eq(expandTo18Decimals(1))
+        expect(currectVotes1).to.be.eq(ethers.utils.parseEther(1))
     })
 
     it('mints', async () => {

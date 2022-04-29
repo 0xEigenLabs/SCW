@@ -53,10 +53,6 @@ let recoveryPeriod = 120 //s
 let expireTime
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
-function expandTo18Decimals(n: number): BigNumber {
-    return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
-}
-
 describe('Governance Action', () => {
     let wallet
     before(async () => {
