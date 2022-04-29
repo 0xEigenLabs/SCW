@@ -33,7 +33,7 @@ const SMABI = [
 
 let lockPeriod = 5 //s
 let recoveryPeriod = 120 //s
-let expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
+let expireTime;
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Module Registry", () => {
@@ -103,7 +103,8 @@ describe("Module Registry", () => {
         let depositAmount = ethers.utils.parseEther("0.1")
         await owner.sendTransaction({to: wallet1.address, value: depositAmount})
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor((new Date().getTime()) / 1000) + 1800;
+        const { timestamp: now } = await provider.getBlock('latest')
+        expireTime = now + 1800;
     })
 
     it("change security module's lock period or recovery period", async function() {

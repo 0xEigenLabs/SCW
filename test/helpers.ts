@@ -1,20 +1,30 @@
-const { ethers, waffle } = require("hardhat");
-import { BigNumber, utils } from "ethers"
+const { ethers, waffle } = require('hardhat')
+import { BigNumber, utils } from 'ethers'
+import { Contract, Wallet, providers } from 'ethers'
 
-import { Wallet__factory } from "../typechain/factories/Wallet__factory"
+import { Wallet__factory } from '../typechain/factories/Wallet__factory'
+import chai, { expect } from 'chai'
+import { solidity } from 'ethereum-waffle'
 
-const provider = ethers.provider;
+const provider = ethers.provider
 
 export const wait = async (ms: number) => {
-    setTimeout(function() { console.log("Waiting") }, ms);
+    setTimeout(function () {
+        console.log('Waiting')
+    }, ms)
 }
 
 export const showBalances = async () => {
-    const accounts = provider.accounts;
-    for (let i=0; i<accounts.length; i++) {
-        console.log(accounts[i] + ': ' + utils.formatEther(provider.getBalance(accounts[i])), 'ether' );
+    const accounts = provider.accounts
+    for (let i = 0; i < accounts.length; i++) {
+        console.log(
+            accounts[i] +
+                ': ' +
+                utils.formatEther(provider.getBalance(accounts[i])),
+            'ether'
+        )
     }
-};
+}
 
 export interface Deposited {
     from: string
@@ -34,51 +44,172 @@ export interface Transacted {
 async function getWalletInstance(walletName, contract, signer) {
     let wallet
     switch (walletName) {
-        case "Wallet":
+        case 'Wallet':
             wallet = await Wallet__factory.connect(contract, signer)
-        break
+            break
     }
     return wallet
 }
 
-export const addHexPrefix = function(str: string): string {
+export const addHexPrefix = function (str: string): string {
     if (typeof str !== 'string') {
         return str
     }
 
-    return str.startsWith("0x") ? str : '0x' + str
+    return str.startsWith('0x') ? str : '0x' + str
 }
 
 export const signHash = async (destinationAddr, value, data, nonce) => {
     const input = `0x${[
-        "0x19",
-        "0x00",
+        '0x19',
+        '0x00',
         destinationAddr,
         ethers.utils.hexZeroPad(ethers.utils.hexlify(value), 32),
         data,
         ethers.utils.hexZeroPad(ethers.utils.hexlify(nonce), 32),
-    ].map((hex) => hex.slice(2)).join("")}`;
+    ]
+        .map((hex) => hex.slice(2))
+        .join('')}`
 
-    return ethers.utils.keccak256(input);
+    return ethers.utils.keccak256(input)
 }
 
-export async function getSignatures(messageHash, signers, returnBadSignatures = false) {
-    // Sort the signers
-    let sortedSigners = signers;
+export const DOMAIN_TYPEHASH = utils.keccak256(
+    utils.toUtf8Bytes(
+        'EIP712Domain(string name,uint256 chainId,address verifyingContract)'
+    )
+)
 
-    let sigs = "0x";
+export const PERMIT_TYPEHASH = utils.keccak256(
+    utils.toUtf8Bytes(
+        'Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'
+    )
+)
+
+export const signHashForGovernanceToken = async (
+    token_address,
+    chain_id,
+    owner,
+    spender,
+    value,
+    nonce,
+    deadline
+) => {
+    const domainSeparator = utils.keccak256(
+        utils.defaultAbiCoder.encode(
+            ['bytes32', 'bytes32', 'uint256', 'address'],
+            [
+                DOMAIN_TYPEHASH,
+                utils.keccak256(utils.toUtf8Bytes('GovernanceToken')),
+                chain_id,
+                token_address,
+            ]
+        )
+    )
+
+    const structHash = utils.keccak256(
+        utils.defaultAbiCoder.encode(
+            ['bytes32', 'address', 'address', 'uint256', 'uint256', 'uint256'],
+            [PERMIT_TYPEHASH, owner, spender, value, nonce, deadline]
+        )
+    )
+
+    const input = `0x${['0x19', '0x01', domainSeparator, structHash]
+        .map((hex) => hex.slice(2))
+        .join('')}`
+
+    return ethers.utils.keccak256(input)
+}
+
+export async function getSignatures(
+    messageHash,
+    signers,
+    returnBadSignatures = false
+) {
+    // Sort the signers
+    let sortedSigners = signers
+
+    let sigs = '0x'
     for (let index = 0; index < sortedSigners.length; index += 1) {
-        const signer = sortedSigners[index];
-        let sig = await signer.signMessage(messageHash);
+        const signer = sortedSigners[index]
+        let sig = await signer.signMessage(messageHash)
 
         if (returnBadSignatures) {
-            sig += "a1";
+            sig += 'a1'
         }
 
-        sig = sig.slice(2);
-        sigs += sig;
+        sig = sig.slice(2)
+        sigs += sig
     }
-    return sigs;
+    return sigs
+}
+
+export const DELAY = 60 * 60 * 24 * 2
+
+export async function mineBlock(
+    provider: providers.Web3Provider,
+    timestamp: number
+): Promise<void> {
+    const { timestamp: now } = await provider.getBlock('latest')
+
+    await provider.send('evm_increaseTime', [timestamp - now])
+    return provider.send('evm_mine', [])
+}
+
+export function expandTo18Decimals(n: number): BigNumber {
+    return BigNumber.from(n).mul(BigNumber.from(10).pow(18))
+}
+
+chai.use(solidity)
+
+interface GovernanceFixture {
+    governanceToken: Contract
+    timelock: Contract
+    governorAlpha: Contract
+}
+
+export async function governanceFixture(
+    [wallet]: Wallet[],
+    provider: providers.Web3Provider
+): Promise<GovernanceFixture> {
+    const { timestamp: now } = await provider.getBlock('latest')
+    let transactionCount = await wallet.getTransactionCount()
+
+    const timelockAddress = Contract.getContractAddress({
+        from: wallet.address,
+        nonce: transactionCount + 1,
+    })
+
+    let factory = await ethers.getContractFactory('GovernanceToken')
+    console.log('Deploy time: ', now)
+    const governanceToken = await factory.deploy(
+        wallet.address,
+        timelockAddress,
+        now + 60 * 60
+    )
+    await governanceToken.deployed()
+    transactionCount = await wallet.getTransactionCount()
+
+    // deploy timelock, controlled by what will be the governor
+    const governorAlphaAddress = Contract.getContractAddress({
+        from: wallet.address,
+        nonce: transactionCount + 1,
+    })
+    factory = await ethers.getContractFactory('Timelock')
+    const timelock = await factory.deploy(governorAlphaAddress, DELAY)
+    await timelock.deployed()
+    expect(timelock.address).to.be.eq(timelockAddress)
+
+    // deploy governorAlpha
+    factory = await ethers.getContractFactory('GovernorAlpha')
+    const governorAlpha = await factory.deploy(
+        timelock.address,
+        governanceToken.address
+    )
+    await governanceToken.deployed()
+    expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
+
+    return { governanceToken, timelock, governorAlpha }
 }
 
 /**
@@ -88,18 +219,18 @@ export async function getSignatures(messageHash, signers, returnBadSignatures = 
  * @return address
  */
 exports.getNextContractAddress = async (address: string) => {
-    const nonce = await provider.getTransactionCount(address);
+    const nonce = await provider.getTransactionCount(address)
     let transaction = {
         from: address,
-        nonce: nonce
-    };
+        nonce: nonce,
+    }
     return utils.getContractAddress(transaction)
-};
+}
 
 export function toHexString(byteArray) {
-    var s = '0x';
-    byteArray.forEach(function(byte) {
-        s += ('0' + (byte & 0xFF).toString(16)).slice(-2);
-    });
-    return s;
+    var s = '0x'
+    byteArray.forEach(function (byte) {
+        s += ('0' + (byte & 0xff).toString(16)).slice(-2)
+    })
+    return s
 }
