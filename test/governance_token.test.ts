@@ -76,11 +76,11 @@ describe('Governance Token', () => {
     it('nested delegation', async () => {
         await governanceToken.transfer(
             other0.address,
-            ethers.utils.parseEther(1)
+            ethers.utils.parseEther('1')
         )
         await governanceToken.transfer(
             other1.address,
-            ethers.utils.parseEther(2)
+            ethers.utils.parseEther('2')
         )
 
         let currectVotes0 = await governanceToken.getCurrentVotes(
@@ -94,17 +94,17 @@ describe('Governance Token', () => {
 
         await governanceToken.connect(other0).delegate(other1.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
-        expect(currectVotes1).to.be.eq(ethers.utils.parseEther(1))
+        expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
 
         await governanceToken.connect(other1).delegate(other1.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(
-            ethers.utils.parseEther(1).add(ethers.utils.parseEther(2))
+            ethers.utils.parseEther('1').add(ethers.utils.parseEther('2'))
         )
 
         await governanceToken.connect(other1).delegate(wallet.address)
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
-        expect(currectVotes1).to.be.eq(ethers.utils.parseEther(1))
+        expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
     })
 
     it('mints', async () => {
