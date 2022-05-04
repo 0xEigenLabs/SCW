@@ -208,28 +208,28 @@ describe('Governance Action', () => {
     })
 
     it('proxy could change admin by admin', async function () {
-        const oldAdmin = await securityModuleProxy.getAdmin()
+        const oldAdmin = await securityModuleProxy.admin()
         expect(oldAdmin).to.be.eq(owner.address)
         await securityModuleProxy.connect(owner).setAdmin(user1.address)
-        const newAdmin = await securityModuleProxy.getAdmin()
+        const newAdmin = await securityModuleProxy.admin()
         expect(newAdmin).to.be.eq(user1.address)
 
         // Then set the admin back to 'owner'
         await securityModuleProxy.connect(user1).setAdmin(owner.address)
-        const admin = await securityModuleProxy.getAdmin()
+        const admin = await securityModuleProxy.admin()
         expect(admin).to.be.eq(owner.address)
     })
 
     it('proxy could not change admin by others', async function () {
-        const oldAdmin = await securityModuleProxy.getAdmin()
+        const oldAdmin = await securityModuleProxy.admin()
         expect(oldAdmin).to.be.eq(owner.address)
         await securityModuleProxy.connect(owner).setAdmin(user1.address)
-        const newAdmin = await securityModuleProxy.getAdmin()
+        const newAdmin = await securityModuleProxy.admin()
         expect(newAdmin).to.be.eq(user1.address)
 
         // Then set the admin back to 'owner'
         await securityModuleProxy.connect(user1).setAdmin(owner.address)
-        const admin = await securityModuleProxy.getAdmin()
+        const admin = await securityModuleProxy.admin()
         expect(admin).to.be.eq(owner.address)
 
         await expect(

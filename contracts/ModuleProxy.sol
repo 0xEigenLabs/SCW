@@ -20,10 +20,6 @@ contract ModuleProxy is IModuleProxy {
         admin = _admin;
     }
 
-    function getAdmin() external view returns (address) {
-        return admin;
-    }
-
     function getImplementation() external view returns (address) {
         return implementation;
     }
