@@ -141,7 +141,6 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
             amount <= SafeMath.div(SafeMath.mul(initTotalSupply, mintCap), 100),
             'GovernanceToken::mint: exceeded mint cap'
         );
-        initTotalSupply = SafeMath.add(initTotalSupply, amount);
 
         _mint(dst, amount);
 
