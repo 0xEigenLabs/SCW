@@ -74,14 +74,17 @@ describe('Governance Action', () => {
         console.log('SecurityModule is deployed at: ', securityModule.address)
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        securityModuleProxy = await factory.deploy()
+        securityModuleProxy = await factory.deploy(owner.address)
         await securityModuleProxy.deployed()
 
         console.log(
             'The proxy of SecurityModule is deployed at: ',
             securityModuleProxy.address
         )
-        await securityModuleProxy.setImplementation(securityModule.address)
+        console.log('Set the admin of the proxy: ', owner.address)
+        await securityModuleProxy
+            .connect(owner)
+            .setImplementation(securityModule.address)
 
         console.log(
             'The proxy of SecurityModule is set with ',
@@ -177,8 +180,8 @@ describe('Governance Action', () => {
             value: depositAmount,
         })
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor(new Date().getTime() / 1000) + 1800
 
+        // FIXME:
         // Every time we update a security module with proxy set implementation
         let factory = await ethers.getContractFactory('SecurityModule')
         let securityModule = await factory.deploy()
@@ -188,7 +191,11 @@ describe('Governance Action', () => {
             securityModule.address
         )
 
-        await securityModuleProxy.setImplementation(securityModule.address)
+        console.log('securityModuleProxy:', securityModuleProxy.address)
+
+        await securityModuleProxy
+            .connect(owner)
+            .setImplementation(securityModule.address)
 
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800
@@ -198,6 +205,36 @@ describe('Governance Action', () => {
         governanceToken = fixture.governanceToken
         timelock = fixture.timelock
         governorAlpha = fixture.governorAlpha
+    })
+
+    it('proxy could change admin by admin', async function () {
+        const oldAdmin = await securityModuleProxy.admin()
+        expect(oldAdmin).to.be.eq(owner.address)
+        await securityModuleProxy.connect(owner).setAdmin(user1.address)
+        const newAdmin = await securityModuleProxy.admin()
+        expect(newAdmin).to.be.eq(user1.address)
+
+        // Then set the admin back to 'owner'
+        await securityModuleProxy.connect(user1).setAdmin(owner.address)
+        const admin = await securityModuleProxy.admin()
+        expect(admin).to.be.eq(owner.address)
+    })
+
+    it('proxy could not change admin by others', async function () {
+        const oldAdmin = await securityModuleProxy.admin()
+        expect(oldAdmin).to.be.eq(owner.address)
+        await securityModuleProxy.connect(owner).setAdmin(user1.address)
+        const newAdmin = await securityModuleProxy.admin()
+        expect(newAdmin).to.be.eq(user1.address)
+
+        // Then set the admin back to 'owner'
+        await securityModuleProxy.connect(user1).setAdmin(owner.address)
+        const admin = await securityModuleProxy.admin()
+        expect(admin).to.be.eq(owner.address)
+
+        await expect(
+            securityModuleProxy.connect(user1).setAdmin(user2.address)
+        ).to.be.revertedWith('MP: only admin can setAdmin')
     })
 
     it("proxy change security module's lock period or recovery period", async function () {
@@ -615,7 +652,8 @@ describe('Governance Action', () => {
         )
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        securityModuleProxy = await factory.deploy()
+        // It is timelock to execute the proposal, so the admin should be timelock
+        securityModuleProxy = await factory.deploy(timelock.address)
         await securityModuleProxy.deployed()
 
         console.log(
@@ -665,7 +703,6 @@ describe('Governance Action', () => {
         // TODO fix if possible, this is really annoying
         // overcome votingPeriod
         for (let i = 0; i <= votingPeriod; i++) {
-            // console.log('Mine ', i)
             await helpers.mineBlock(provider, now)
         }
 

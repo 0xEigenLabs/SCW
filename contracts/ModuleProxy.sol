@@ -4,9 +4,20 @@ import './IModuleProxy.sol';
 
 contract ModuleProxy is IModuleProxy {
     address public implementation;
+    address public admin;
 
     function setImplementation(address _imp) external override {
+        require(admin == msg.sender, 'MP: only admin can setImplementation');
         implementation = _imp;
+    }
+
+    constructor(address _admin) {
+        admin = _admin;
+    }
+
+    function setAdmin(address _admin) public {
+        require(admin == msg.sender, 'MP: only admin can setAdmin');
+        admin = _admin;
     }
 
     function getImplementation() external view returns (address) {

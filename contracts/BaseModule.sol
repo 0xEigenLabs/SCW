@@ -9,6 +9,7 @@ import "./IModuleRegistry.sol";
 abstract contract BaseModule is IModule {
 
     address public implementation;
+    address public admin;
     IModuleRegistry internal registry;
     address[] internal wallets;
 

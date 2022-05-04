@@ -4,19 +4,12 @@ pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
-contract GovernanceToken {
-    /// @notice EIP-20 token name for this token
-    string public constant name = 'GovernanceToken';
-
-    /// @notice EIP-20 token symbol for this token
-    string public constant symbol = 'GT';
-
-    /// @notice EIP-20 token decimals for this token
-    uint8 public constant decimals = 18;
-
+contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     /// @notice Total number of tokens in circulation
-    uint256 public totalSupply = 1_000_000_000e18;
+    uint256 public initTotalSupply = 1_000_000_000e18;
 
     /// @notice Address which may mint new tokens
     address public minter;
@@ -29,12 +22,6 @@ contract GovernanceToken {
 
     // @notice Cap on the percentage of totalSupply that can be minted at each mint
     uint8 public constant mintCap = 2;
-
-    // @notice Allowance amounts on behalf of others
-    mapping(address => mapping(address => uint96)) internal allowances;
-
-    // @notice Official record of token balances for each account
-    mapping(address => uint96) internal balances;
 
     /// @notice A record of each accounts delegate
     mapping(address => address) public delegates;
@@ -87,16 +74,6 @@ contract GovernanceToken {
         uint256 newBalance
     );
 
-    /// @notice The standard EIP-20 transfer event
-    event Transfer(address indexed from, address indexed to, uint256 amount);
-
-    /// @notice The standard EIP-20 approval event
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 amount
-    );
-
     /**
      * @notice Construct a new token
      * @param account The initial account to grant all the tokens
@@ -113,8 +90,8 @@ contract GovernanceToken {
             'GovernanceToken::constructor: minting can only begin after deployment'
         );
 
-        balances[account] = uint96(totalSupply);
-        emit Transfer(address(0), account, totalSupply);
+        _mint(account, initTotalSupply);
+
         minter = minter_;
         emit MinterChanged(address(0), minter);
         mintingAllowedAfter = mintingAllowedAfter_;
@@ -159,71 +136,16 @@ contract GovernanceToken {
         );
 
         // mint the amount
-        uint96 amount = safe96(
-            rawAmount,
-            'GovernanceToken::mint: amount exceeds 96 bits'
-        );
+        uint96 amount = SafeCast.toUint96(rawAmount);
         require(
-            amount <= SafeMath.div(SafeMath.mul(totalSupply, mintCap), 100),
+            amount <= SafeMath.div(SafeMath.mul(initTotalSupply, mintCap), 100),
             'GovernanceToken::mint: exceeded mint cap'
         );
-        totalSupply = safe96(
-            SafeMath.add(totalSupply, amount),
-            'GovernanceToken::mint: totalSupply exceeds 96 bits'
-        );
 
-        // transfer the amount to the recipient
-        balances[dst] = add96(
-            balances[dst],
-            amount,
-            'GovernanceToken::mint: transfer amount overflows'
-        );
-        emit Transfer(address(0), dst, amount);
+        _mint(dst, amount);
 
         // move delegates
         _moveDelegates(address(0), delegates[dst], amount);
-    }
-
-    /**
-     * @notice Get the number of tokens `spender` is approved to spend on behalf of `account`
-     * @param account The address of the account holding the funds
-     * @param spender The address of the account spending the funds
-     * @return The number of tokens approved
-     */
-    function allowance(address account, address spender)
-        external
-        view
-        returns (uint256)
-    {
-        return allowances[account][spender];
-    }
-
-    /**
-     * @notice Approve `spender` to transfer up to `amount` from `src`
-     * @dev This will overwrite the approval amount for `spender`
-     *  and is subject to issues noted [here](https://eips.ethereum.org/EIPS/eip-20#approve)
-     * @param spender The address of the account which may transfer tokens
-     * @param rawAmount The number of tokens that are approved (2^256-1 means infinite)
-     * @return Whether or not the approval succeeded
-     */
-    function approve(address spender, uint256 rawAmount)
-        external
-        returns (bool)
-    {
-        uint96 amount;
-        if (rawAmount == type(uint256).max) {
-            amount = type(uint96).max;
-        } else {
-            amount = safe96(
-                rawAmount,
-                'GovernanceToken::approve: amount exceeds 96 bits'
-            );
-        }
-
-        allowances[msg.sender][spender] = amount;
-
-        emit Approval(msg.sender, spender, amount);
-        return true;
     }
 
     /**
@@ -249,16 +171,13 @@ contract GovernanceToken {
         if (rawAmount == type(uint256).max) {
             amount = type(uint96).max;
         } else {
-            amount = safe96(
-                rawAmount,
-                'GovernanceToken::permit: amount exceeds 96 bits'
-            );
+            amount = SafeCast.toUint96(rawAmount);
         }
 
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
+                keccak256(bytes(name())),
                 block.chainid,
                 address(this)
             )
@@ -301,67 +220,7 @@ contract GovernanceToken {
             'GovernanceToken::permit: signature expired'
         );
 
-        allowances[owner][spender] = amount;
-
-        emit Approval(owner, spender, amount);
-    }
-
-    /**
-     * @notice Get the number of tokens held by the `account`
-     * @param account The address of the account to get the balance of
-     * @return The number of tokens held
-     */
-    function balanceOf(address account) external view returns (uint256) {
-        return balances[account];
-    }
-
-    /**
-     * @notice Transfer `amount` tokens from `msg.sender` to `dst`
-     * @param dst The address of the destination account
-     * @param rawAmount The number of tokens to transfer
-     * @return Whether or not the transfer succeeded
-     */
-    function transfer(address dst, uint256 rawAmount) external returns (bool) {
-        uint96 amount = safe96(
-            rawAmount,
-            'GovernanceToken::transfer: amount exceeds 96 bits'
-        );
-        _transferTokens(msg.sender, dst, amount);
-        return true;
-    }
-
-    /**
-     * @notice Transfer `amount` tokens from `src` to `dst`
-     * @param src The address of the source account
-     * @param dst The address of the destination account
-     * @param rawAmount The number of tokens to transfer
-     * @return Whether or not the transfer succeeded
-     */
-    function transferFrom(
-        address src,
-        address dst,
-        uint256 rawAmount
-    ) external returns (bool) {
-        address spender = msg.sender;
-        uint96 spenderAllowance = allowances[src][spender];
-        uint96 amount = safe96(
-            rawAmount,
-            'GovernanceToken::approve: amount exceeds 96 bits'
-        );
-
-        if (spender != src && spenderAllowance != type(uint96).max) {
-            uint96 newAllowance = sub96(
-                spenderAllowance,
-                amount,
-                'GovernanceToken::transferFrom: transfer amount exceeds spender allowance'
-            );
-            allowances[src][spender] = newAllowance;
-
-            emit Approval(src, spender, newAllowance);
-        }
-
-        _transferTokens(src, dst, amount);
-        return true;
+        _approve(owner, spender, amount);
     }
 
     /**
@@ -392,7 +251,7 @@ contract GovernanceToken {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
+                keccak256(bytes(name())),
                 block.chainid,
                 address(this)
             )
@@ -480,7 +339,7 @@ contract GovernanceToken {
 
     function _delegate(address delegator, address delegatee) internal {
         address currentDelegate = delegates[delegator];
-        uint96 delegatorBalance = balances[delegator];
+        uint96 delegatorBalance = SafeCast.toUint96(balanceOf(delegator));
         delegates[delegator] = delegatee;
 
         emit DelegateChanged(delegator, currentDelegate, delegatee);
@@ -502,17 +361,7 @@ contract GovernanceToken {
             'GovernanceToken::_transferTokens: cannot transfer to the zero address'
         );
 
-        balances[src] = sub96(
-            balances[src],
-            amount,
-            'GovernanceToken::_transferTokens: transfer amount exceeds balance'
-        );
-        balances[dst] = add96(
-            balances[dst],
-            amount,
-            'GovernanceToken::_transferTokens: transfer amount overflows'
-        );
-        emit Transfer(src, dst, amount);
+        _transfer(src, dst, amount);
 
         _moveDelegates(delegates[src], delegates[dst], amount);
     }
@@ -520,7 +369,7 @@ contract GovernanceToken {
     function _moveDelegates(
         address srcRep,
         address dstRep,
-        uint96 amount
+        uint256 amount
     ) internal {
         if (srcRep != dstRep && amount > 0) {
             if (srcRep != address(0)) {
@@ -528,10 +377,12 @@ contract GovernanceToken {
                 uint96 srcRepOld = srcRepNum > 0
                     ? checkpoints[srcRep][srcRepNum - 1].votes
                     : 0;
-                uint96 srcRepNew = sub96(
-                    srcRepOld,
-                    amount,
-                    'GovernanceToken::_moveVotes: vote amount underflows'
+                uint96 srcRepNew = SafeCast.toUint96(
+                    SafeMath.sub(
+                        srcRepOld,
+                        amount,
+                        'GovernanceToken::_moveVotes: vote amount underflows'
+                    )
                 );
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
             }
@@ -541,10 +392,8 @@ contract GovernanceToken {
                 uint96 dstRepOld = dstRepNum > 0
                     ? checkpoints[dstRep][dstRepNum - 1].votes
                     : 0;
-                uint96 dstRepNew = add96(
-                    dstRepOld,
-                    amount,
-                    'GovernanceToken::_moveVotes: vote amount overflows'
+                uint96 dstRepNew = SafeCast.toUint96(
+                    SafeMath.add(dstRepOld, amount)
                 );
                 _writeCheckpoint(dstRep, dstRepNum, dstRepOld, dstRepNew);
             }
@@ -557,10 +406,7 @@ contract GovernanceToken {
         uint96 oldVotes,
         uint96 newVotes
     ) internal {
-        uint32 blockNumber = safe32(
-            block.number,
-            'GovernanceToken::_writeCheckpoint: block number exceeds 32 bits'
-        );
+        uint32 blockNumber = SafeCast.toUint32(block.number);
 
         if (
             nCheckpoints > 0 &&
@@ -576,42 +422,5 @@ contract GovernanceToken {
         }
 
         emit DelegateVotesChanged(delegatee, oldVotes, newVotes);
-    }
-
-    function safe32(uint256 n, string memory errorMessage)
-        internal
-        pure
-        returns (uint32)
-    {
-        require(n < 2**32, errorMessage);
-        return uint32(n);
-    }
-
-    function safe96(uint256 n, string memory errorMessage)
-        internal
-        pure
-        returns (uint96)
-    {
-        require(n < 2**96, errorMessage);
-        return uint96(n);
-    }
-
-    function add96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
-        uint96 c = a + b;
-        require(c >= a, errorMessage);
-        return c;
-    }
-
-    function sub96(
-        uint96 a,
-        uint96 b,
-        string memory errorMessage
-    ) internal pure returns (uint96) {
-        require(b <= a, errorMessage);
-        return a - b;
     }
 }
