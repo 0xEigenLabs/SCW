@@ -622,7 +622,7 @@ describe('Governance Action', () => {
         )
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        securityModuleProxy = await factory.deploy(governorAlpha.address)
+        securityModuleProxy = await factory.deploy(timelock.address)
         await securityModuleProxy.deployed()
 
         console.log(
