@@ -74,14 +74,17 @@ describe('Governance Action', () => {
         console.log('SecurityModule is deployed at: ', securityModule.address)
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        securityModuleProxy = await factory.deploy()
+        securityModuleProxy = await factory.deploy(owner.address)
         await securityModuleProxy.deployed()
 
         console.log(
             'The proxy of SecurityModule is deployed at: ',
             securityModuleProxy.address
         )
-        await securityModuleProxy.setImplementation(securityModule.address)
+        console.log('Set the admin of the proxy: ', owner.address)
+        await securityModuleProxy
+            .connect(owner)
+            .setImplementation(securityModule.address)
 
         console.log(
             'The proxy of SecurityModule is set with ',
@@ -177,18 +180,22 @@ describe('Governance Action', () => {
             value: depositAmount,
         })
         sequenceId = await wallet1.getNextSequenceId()
-        expireTime = Math.floor(new Date().getTime() / 1000) + 1800
 
+        // FIXME:
         // Every time we update a security module with proxy set implementation
-        let factory = await ethers.getContractFactory('SecurityModule')
-        let securityModule = await factory.deploy()
-        await securityModule.deployed()
-        console.log(
-            'A New SecurityModule is deployed at: ',
-            securityModule.address
-        )
+        // let factory = await ethers.getContractFactory('SecurityModule')
+        // let securityModule = await factory.deploy()
+        // await securityModule.deployed()
+        // console.log(
+        //     'A New SecurityModule is deployed at: ',
+        //     securityModule.address
+        // )
 
-        await securityModuleProxy.setImplementation(securityModule.address)
+        // console.log('securityModuleProxy:', securityModuleProxy.address)
+
+        // await securityModuleProxy
+        //     .connect(owner)
+        //     .setImplementation(securityModule.address)
 
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800
@@ -615,7 +622,7 @@ describe('Governance Action', () => {
         )
 
         factory = await ethers.getContractFactory('ModuleProxy')
-        securityModuleProxy = await factory.deploy()
+        securityModuleProxy = await factory.deploy(governorAlpha.address)
         await securityModuleProxy.deployed()
 
         console.log(
@@ -665,7 +672,6 @@ describe('Governance Action', () => {
         // TODO fix if possible, this is really annoying
         // overcome votingPeriod
         for (let i = 0; i <= votingPeriod; i++) {
-            // console.log('Mine ', i)
             await helpers.mineBlock(provider, now)
         }
 
