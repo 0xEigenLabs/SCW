@@ -622,6 +622,7 @@ describe('Governance Action', () => {
         )
 
         factory = await ethers.getContractFactory('ModuleProxy')
+        // It is timelock to execute the proposal, so the admin should be timelock
         securityModuleProxy = await factory.deploy(timelock.address)
         await securityModuleProxy.deployed()
 
