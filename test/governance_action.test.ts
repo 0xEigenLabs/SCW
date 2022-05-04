@@ -183,19 +183,19 @@ describe('Governance Action', () => {
 
         // FIXME:
         // Every time we update a security module with proxy set implementation
-        // let factory = await ethers.getContractFactory('SecurityModule')
-        // let securityModule = await factory.deploy()
-        // await securityModule.deployed()
-        // console.log(
-        //     'A New SecurityModule is deployed at: ',
-        //     securityModule.address
-        // )
+        let factory = await ethers.getContractFactory('SecurityModule')
+        let securityModule = await factory.deploy()
+        await securityModule.deployed()
+        console.log(
+            'A New SecurityModule is deployed at: ',
+            securityModule.address
+        )
 
-        // console.log('securityModuleProxy:', securityModuleProxy.address)
+        console.log('securityModuleProxy:', securityModuleProxy.address)
 
-        // await securityModuleProxy
-        //     .connect(owner)
-        //     .setImplementation(securityModule.address)
+        await securityModuleProxy
+            .connect(owner)
+            .setImplementation(securityModule.address)
 
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800
