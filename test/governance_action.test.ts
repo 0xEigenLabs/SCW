@@ -207,6 +207,36 @@ describe('Governance Action', () => {
         governorAlpha = fixture.governorAlpha
     })
 
+    it('proxy could change admin by admin', async function () {
+        const oldAdmin = await securityModuleProxy.getAdmin()
+        expect(oldAdmin).to.be.eq(owner.address)
+        await securityModuleProxy.connect(owner).setAdmin(user1.address)
+        const newAdmin = await securityModuleProxy.getAdmin()
+        expect(newAdmin).to.be.eq(user1.address)
+
+        // Then set the admin back to 'owner'
+        await securityModuleProxy.connect(user1).setAdmin(owner.address)
+        const admin = await securityModuleProxy.getAdmin()
+        expect(admin).to.be.eq(owner.address)
+    })
+
+    it('proxy could not change admin by others', async function () {
+        const oldAdmin = await securityModuleProxy.getAdmin()
+        expect(oldAdmin).to.be.eq(owner.address)
+        await securityModuleProxy.connect(owner).setAdmin(user1.address)
+        const newAdmin = await securityModuleProxy.getAdmin()
+        expect(newAdmin).to.be.eq(user1.address)
+
+        // Then set the admin back to 'owner'
+        await securityModuleProxy.connect(user1).setAdmin(owner.address)
+        const admin = await securityModuleProxy.getAdmin()
+        expect(admin).to.be.eq(owner.address)
+
+        await expect(
+            securityModuleProxy.connect(user1).setAdmin(user2.address)
+        ).to.be.revertedWith('MP: only admin can setAdmin')
+    })
+
     it("proxy change security module's lock period or recovery period", async function () {
         let lp = await proxiedSerurityModule.getLockedSecurityPeriod(
             wallet1.address
