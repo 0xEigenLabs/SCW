@@ -41,7 +41,7 @@ const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 describe('GovernorAlpha', () => {
     let wallet
     before(async () => {
-        [wallet] = await hre.ethers.getSigners()
+        ;[wallet] = await hre.ethers.getSigners()
     })
 
     beforeEach(async function () {
@@ -73,5 +73,9 @@ describe('GovernorAlpha', () => {
         expect(timelockAddress).to.be.eq(timelock.address)
         const testTokenFromGovernor = await governorAlpha.eigen()
         expect(testTokenFromGovernor).to.be.eq(governanceToken.address)
+        const quorumVotes = await governorAlpha.quorumVotes()
+        expect(quorumVotes).to.be.eq(ethers.utils.parseEther('40000000'))
+        const proposalThreshold = await governorAlpha.proposalThreshold()
+        expect(proposalThreshold).to.be.eq(ethers.utils.parseEther('10000000'))
     })
 })
