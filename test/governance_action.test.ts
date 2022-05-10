@@ -642,6 +642,54 @@ describe('Governance Action', () => {
         ).to.be.revertedWith('BM: wallet locked globally')
     })
 
+    it('should add proposal', async () => {
+        // A proposal need to deploy the target contract before adding it
+        let factory = await ethers.getContractFactory('SecurityModule')
+        let securityModule = await factory.deploy()
+        await securityModule.deployed()
+
+        factory = await ethers.getContractFactory('ModuleProxy')
+        // It is timelock to execute the proposal, so the admin should be timelock
+        securityModuleProxy = await factory.deploy(timelock.address)
+        await securityModuleProxy.deployed()
+
+        const target = securityModuleProxy.address
+        const value = 0
+        const signature = 'setImplementation(address)'
+        const calldata = utils.defaultAbiCoder.encode(
+            ['address'],
+            [securityModule.address]
+        )
+        const description = 'This is a test proposal'
+
+        // activate balances
+        await governanceToken.delegate(wallet.address)
+        const { timestamp: now } = await provider.getBlock('latest')
+        await helpers.mineBlock(provider, now)
+
+        const proposalId = await governorAlpha.callStatic.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
+
+        const tx = await governorAlpha.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
+
+        await tx.wait()
+
+        console.log('The proposal id is ', proposalId)
+
+        expect(proposalId).gt(0)
+    })
+
     it('update a new security module with GovernanceAlpha', async () => {
         let factory = await ethers.getContractFactory('SecurityModule')
         let securityModule = await factory.deploy()
