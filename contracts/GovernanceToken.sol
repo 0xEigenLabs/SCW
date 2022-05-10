@@ -337,6 +337,22 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
         return checkpoints[account][lower].votes;
     }
 
+    /**
+     * @notice Transfer `amount` tokens from `msg.sender` to `dst`
+     * @param dst The address of the destination account
+     * @param rawAmount The number of tokens to transfer
+     * @return Whether or not the transfer succeeded
+     */
+    function transfer(address dst, uint256 rawAmount)
+        public
+        override
+        returns (bool)
+    {
+        uint96 amount = SafeCast.toUint64(rawAmount);
+        _transferTokens(msg.sender, dst, amount);
+        return true;
+    }
+
     function _delegate(address delegator, address delegatee) internal {
         address currentDelegate = delegates[delegator];
         uint96 delegatorBalance = SafeCast.toUint96(balanceOf(delegator));
