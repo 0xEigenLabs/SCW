@@ -643,26 +643,19 @@ describe('Governance Action', () => {
     })
 
     it('should add proposal', async () => {
-        // A proposal need to deploy the target contract before adding it
-        let factory = await ethers.getContractFactory('SecurityModule')
-        let securityModule = await factory.deploy()
-        await securityModule.deployed()
-
-        factory = await ethers.getContractFactory('ModuleProxy')
-        // It is timelock to execute the proposal, so the admin should be timelock
-        securityModuleProxy = await factory.deploy(timelock.address)
-        await securityModuleProxy.deployed()
-
-        const target = securityModuleProxy.address
+        // `target` should be the contract address the proposal want to execute
+        // The test here does not execute a contract, just use a random address
+        const target = Wallet.createRandom().connect(provider).address
         const value = 0
         const signature = 'setImplementation(address)'
         const calldata = utils.defaultAbiCoder.encode(
             ['address'],
-            [securityModule.address]
+            [Wallet.createRandom().connect(provider).address]
         )
         const description = 'This is a test proposal'
 
         // activate balances
+        // a user who has enough token can submit a proposal
         await governanceToken.delegate(wallet.address)
         const { timestamp: now } = await provider.getBlock('latest')
         await helpers.mineBlock(provider, now)
@@ -685,7 +678,7 @@ describe('Governance Action', () => {
 
         await tx.wait()
 
-        console.log('The proposal id is ', proposalId)
+        console.log('The proposal id is ', proposalId.toNumber())
 
         expect(proposalId).gt(0)
     })
