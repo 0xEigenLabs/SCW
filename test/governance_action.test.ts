@@ -681,6 +681,19 @@ describe('Governance Action', () => {
         console.log('The proposal id is ', proposalId.toNumber())
 
         expect(proposalId).gt(0)
+
+        const [proposal, _actions, _admin] = await Promise.all([
+            governorAlpha.proposals(proposalId),
+            governorAlpha.getActions(proposalId),
+            governorAlpha.timelock(),
+        ])
+
+        expect(proposal.id).eq(proposalId)
+        expect(proposal.proposer).eq(wallet.address)
+        expect(proposal.forVotes).eq(0)
+        expect(proposal.againstVotes).eq(0)
+        expect(proposal.canceled).eq(false)
+        expect(proposal.executed).eq(false)
     })
 
     it('update a new security module with GovernanceAlpha', async () => {
