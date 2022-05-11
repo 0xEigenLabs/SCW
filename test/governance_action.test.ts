@@ -657,6 +657,13 @@ describe('Governance Action', () => {
         // activate balances
         // a user who has enough token can submit a proposal
         await governanceToken.delegate(wallet.address)
+
+        let balance = await governanceToken.balanceOf(wallet.address)
+
+        const proposalThreshold = await governorAlpha.proposalThreshold()
+        // A user whose balance is greater than threshold could submit a proposal
+        expect(balance).to.be.gt(proposalThreshold)
+
         const { timestamp: now } = await provider.getBlock('latest')
         await helpers.mineBlock(provider, now)
 
@@ -710,7 +717,7 @@ describe('Governance Action', () => {
 
         console.log('All Proposal IDs: ', allProposalIds)
 
-        // To fetch the Proposal
+        // To fetch Proposal
         const theProposalCreatedLog = createProposalLogs.filter(
             (log) => log.args.id.toNumber() == proposalId.toNumber()
         )
