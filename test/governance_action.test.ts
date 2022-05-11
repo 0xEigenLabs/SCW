@@ -682,11 +682,19 @@ describe('Governance Action', () => {
 
         expect(proposalId).gt(0)
 
-        const [proposal, _actions, _admin] = await Promise.all([
-            governorAlpha.proposals(proposalId),
-            governorAlpha.getActions(proposalId),
-            governorAlpha.timelock(),
-        ])
+        const latestBlock = await provider.getBlock('latest')
+        const blockRange = [0, latestBlock.number]
+
+        const [proposal, _actions, _admin, createProposalLogs] =
+            await Promise.all([
+                governorAlpha.proposals(proposalId),
+                governorAlpha.getActions(proposalId),
+                governorAlpha.timelock(),
+                governorAlpha.queryFilter(
+                    governorAlpha.filters.ProposalCreated(),
+                    ...blockRange
+                ),
+            ])
 
         expect(proposal.id).eq(proposalId)
         expect(proposal.proposer).eq(wallet.address)
@@ -694,6 +702,28 @@ describe('Governance Action', () => {
         expect(proposal.againstVotes).eq(0)
         expect(proposal.canceled).eq(false)
         expect(proposal.executed).eq(false)
+
+        // To fetch all Proposal IDs
+        const allProposalIds = createProposalLogs.map((logs) =>
+            logs.args.id.toNumber()
+        )
+
+        console.log('All Proposal IDs: ', allProposalIds)
+
+        // To fetch the Proposal
+        const theProposalCreatedLog = createProposalLogs.filter(
+            (log) => log.args.id.toNumber() == proposalId.toNumber()
+        )
+
+        expect(allProposalIds.length).gt(0)
+        expect(theProposalCreatedLog.length).eq(1)
+
+        console.log(theProposalCreatedLog[0])
+
+        expect(theProposalCreatedLog[0].args.proposer).eq(wallet.address)
+        expect(theProposalCreatedLog[0].args.targets).to.eql([target])
+        expect(theProposalCreatedLog[0].args.signatures).to.eql([signature])
+        expect(theProposalCreatedLog[0].args.description).eq(description)
     })
 
     it('update a new security module with GovernanceAlpha', async () => {
