@@ -642,6 +642,97 @@ describe('Governance Action', () => {
         ).to.be.revertedWith('BM: wallet locked globally')
     })
 
+    it('should add proposal', async () => {
+        // `target` should be the contract address the proposal want to execute
+        // The test here does not execute a contract, just use a random address
+        const target = Wallet.createRandom().connect(provider).address
+        const value = 0
+        const signature = 'setImplementation(address)'
+        const calldata = utils.defaultAbiCoder.encode(
+            ['address'],
+            [Wallet.createRandom().connect(provider).address]
+        )
+        const description = 'This is a test proposal'
+
+        // activate balances
+        // a user who has enough token can submit a proposal
+        await governanceToken.delegate(wallet.address)
+
+        let balance = await governanceToken.balanceOf(wallet.address)
+
+        const proposalThreshold = await governorAlpha.proposalThreshold()
+        // A user whose balance is greater than threshold could submit a proposal
+        expect(balance).to.be.gt(proposalThreshold)
+
+        const { timestamp: now } = await provider.getBlock('latest')
+        await helpers.mineBlock(provider, now)
+
+        const proposalId = await governorAlpha.callStatic.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
+
+        const tx = await governorAlpha.propose(
+            [target],
+            [value],
+            [signature],
+            [calldata],
+            description
+        )
+
+        await tx.wait()
+
+        console.log('The proposal id is ', proposalId.toNumber())
+
+        expect(proposalId).gt(0)
+
+        const latestBlock = await provider.getBlock('latest')
+        const blockRange = [0, latestBlock.number]
+
+        const [proposal, _actions, _admin, createProposalLogs] =
+            await Promise.all([
+                governorAlpha.proposals(proposalId),
+                governorAlpha.getActions(proposalId),
+                governorAlpha.timelock(),
+                governorAlpha.queryFilter(
+                    governorAlpha.filters.ProposalCreated(),
+                    ...blockRange
+                ),
+            ])
+
+        expect(proposal.id).eq(proposalId)
+        expect(proposal.proposer).eq(wallet.address)
+        expect(proposal.forVotes).eq(0)
+        expect(proposal.againstVotes).eq(0)
+        expect(proposal.canceled).eq(false)
+        expect(proposal.executed).eq(false)
+
+        // To fetch all Proposal IDs
+        const allProposalIds = createProposalLogs.map((logs) =>
+            logs.args.id.toNumber()
+        )
+
+        console.log('All Proposal IDs: ', allProposalIds)
+
+        // To fetch Proposal
+        const theProposalCreatedLog = createProposalLogs.filter(
+            (log) => log.args.id.toNumber() == proposalId.toNumber()
+        )
+
+        expect(allProposalIds.length).gt(0)
+        expect(theProposalCreatedLog.length).eq(1)
+
+        console.log(theProposalCreatedLog[0])
+
+        expect(theProposalCreatedLog[0].args.proposer).eq(wallet.address)
+        expect(theProposalCreatedLog[0].args.targets).to.eql([target])
+        expect(theProposalCreatedLog[0].args.signatures).to.eql([signature])
+        expect(theProposalCreatedLog[0].args.description).eq(description)
+    })
+
     it('update a new security module with GovernanceAlpha', async () => {
         let factory = await ethers.getContractFactory('SecurityModule')
         let securityModule = await factory.deploy()
