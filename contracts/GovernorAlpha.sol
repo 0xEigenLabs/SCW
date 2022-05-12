@@ -184,7 +184,6 @@ contract GovernorAlpha {
         newProposal.calldatas = calldatas;
         newProposal.startBlock = startBlock;
         newProposal.endBlock = endBlock;
-        newProposal.endBlock = endBlock;
         newProposal.forVotes = 0;
         newProposal.againstVotes = 0;
         newProposal.canceled = false;
