@@ -3,11 +3,11 @@
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
+contract GovernanceToken is ERC20("GovernanceToken", "GT") {
     /// @notice Total number of tokens in circulation
     uint256 public initTotalSupply = 1_000_000_000e18;
 
@@ -38,20 +38,20 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
 
-    /// @notice The EIP-712 typehash for the contract's domain
+    /// @notice The EIP-712 typehash for the contract"s domain
     bytes32 public constant DOMAIN_TYPEHASH =
         keccak256(
-            'EIP712Domain(string name,uint256 chainId,address verifyingContract)'
+            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
         );
 
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH =
-        keccak256('Delegation(address delegatee,uint256 nonce,uint256 expiry)');
+        keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
     /// @notice The EIP-712 typehash for the permit struct used by the contract
     bytes32 public constant PERMIT_TYPEHASH =
         keccak256(
-            'Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
         );
 
     /// @notice A record of states for signing / validating signatures
@@ -67,7 +67,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
         address indexed toDelegate
     );
 
-    /// @notice An event thats emitted when a delegate account's vote balance changes
+    /// @notice An event thats emitted when a delegate account"s vote balance changes
     event DelegateVotesChanged(
         address indexed delegate,
         uint256 previousBalance,
@@ -87,7 +87,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     ) public {
         require(
             mintingAllowedAfter_ >= block.timestamp,
-            'GovernanceToken::constructor: minting can only begin after deployment'
+            "GovernanceToken::constructor: minting can only begin after deployment"
         );
 
         _mint(account, initTotalSupply);
@@ -104,7 +104,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     function setMinter(address minter_) external {
         require(
             msg.sender == minter,
-            'GovernanceToken::setMinter: only the minter can change the minter address'
+            "GovernanceToken::setMinter: only the minter can change the minter address"
         );
         emit MinterChanged(minter, minter_);
         minter = minter_;
@@ -118,15 +118,15 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     function mint(address dst, uint256 rawAmount) external {
         require(
             msg.sender == minter,
-            'GovernanceToken::mint: only the minter can mint'
+            "GovernanceToken::mint: only the minter can mint"
         );
         require(
             block.timestamp >= mintingAllowedAfter,
-            'GovernanceToken::mint: minting not allowed yet'
+            "GovernanceToken::mint: minting not allowed yet"
         );
         require(
             dst != address(0),
-            'GovernanceToken::mint: cannot transfer to the zero address'
+            "GovernanceToken::mint: cannot transfer to the zero address"
         );
 
         // record the mint
@@ -139,7 +139,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
         uint96 amount = SafeCast.toUint96(rawAmount);
         require(
             amount <= SafeMath.div(SafeMath.mul(initTotalSupply, mintCap), 100),
-            'GovernanceToken::mint: exceeded mint cap'
+            "GovernanceToken::mint: exceeded mint cap"
         );
 
         _mint(dst, amount);
@@ -204,7 +204,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
 
         address signatory = ecrecover(
             keccak256(
-                abi.encodePacked('\x19Ethereum Signed Message:\n32', hash)
+                abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)
             ),
             v,
             r,
@@ -212,12 +212,12 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
         );
         require(
             signatory != address(0),
-            'GovernanceToken::permit: invalid signature'
+            "GovernanceToken::permit: invalid signature"
         );
-        require(signatory == owner, 'GovernanceToken::permit: unauthorized');
+        require(signatory == owner, "GovernanceToken::permit: unauthorized");
         require(
             block.timestamp <= deadline,
-            'GovernanceToken::permit: signature expired'
+            "GovernanceToken::permit: signature expired"
         );
 
         _approve(owner, spender, amount);
@@ -260,20 +260,20 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
             abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
         );
         bytes32 digest = keccak256(
-            abi.encodePacked('\x19\x01', domainSeparator, structHash)
+            abi.encodePacked("\x19\x01", domainSeparator, structHash)
         );
         address signatory = ecrecover(digest, v, r, s);
         require(
             signatory != address(0),
-            'GovernanceToken::delegateBySig: invalid signature'
+            "GovernanceToken::delegateBySig: invalid signature"
         );
         require(
             nonce == nonces[signatory]++,
-            'GovernanceToken::delegateBySig: invalid nonce'
+            "GovernanceToken::delegateBySig: invalid nonce"
         );
         require(
             block.timestamp <= expiry,
-            'GovernanceToken::delegateBySig: signature expired'
+            "GovernanceToken::delegateBySig: signature expired"
         );
         return _delegate(signatory, delegatee);
     }
@@ -303,7 +303,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     {
         require(
             blockNumber < block.number,
-            'GovernanceToken::getPriorVotes: not yet determined'
+            "GovernanceToken::getPriorVotes: not yet determined"
         );
 
         uint32 nCheckpoints = numCheckpoints[account];
@@ -393,11 +393,11 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
     ) internal {
         require(
             src != address(0),
-            'GovernanceToken::_transferTokens: cannot transfer from the zero address'
+            "GovernanceToken::_transferTokens: cannot transfer from the zero address"
         );
         require(
             dst != address(0),
-            'GovernanceToken::_transferTokens: cannot transfer to the zero address'
+            "GovernanceToken::_transferTokens: cannot transfer to the zero address"
         );
 
         _transfer(src, dst, amount);
@@ -420,7 +420,7 @@ contract GovernanceToken is ERC20('GovernanceToken', 'GT') {
                     SafeMath.sub(
                         srcRepOld,
                         amount,
-                        'GovernanceToken::_moveVotes: vote amount underflows'
+                        "GovernanceToken::_moveVotes: vote amount underflows"
                     )
                 );
                 _writeCheckpoint(srcRep, srcRepNum, srcRepOld, srcRepNew);
