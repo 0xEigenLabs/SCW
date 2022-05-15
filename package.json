@@ -9,7 +9,7 @@
     "test": "yarn build && npx hardhat test",
     "lint_typescript": "./node_modules/.bin/eslint test --ext .ts",
     "lint_contract": "./node_modules/.bin/solhint 'contracts/**/*.sol'",
-    "lint": "yarn lint_contract && lint_contract"
+    "lint": "yarn lint_contract && yarn lint_contract"
   },
   "author": "Eigen Lab",
   "license": "Apache-2.0",
