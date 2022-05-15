@@ -7,7 +7,9 @@
     "clean": "rm -rf build dist typechain cache artifacts",
     "build": "hardhat compile",
     "test": "yarn build && npx hardhat test",
-    "lint_test": "./node_modules/.bin/eslint test --ext .ts"
+    "lint_typescript": "./node_modules/.bin/eslint test --ext .ts",
+    "lint_contract": "./node_modules/.bin/solhint 'contracts/**/*.sol'",
+    "lint": "yarn lint_contract && lint_contract"
   },
   "author": "Eigen Lab",
   "license": "Apache-2.0",
@@ -27,7 +29,8 @@
     "typescript-eslint-parser": "^22.0.0",
     "@eslint/create-config": "^0.1.2",
     "@typescript-eslint/eslint-plugin": "^5.12.0",
-    "@typescript-eslint/parser": "^5.12.0"
+    "@typescript-eslint/parser": "^5.12.0",
+    "solhint": "^3.3.7"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.4.0",
