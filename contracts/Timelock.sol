@@ -162,11 +162,11 @@ contract Timelock {
         );
         require(
             queuedTransactions[txHash],
-            "Timelock::executeTransaction: Transaction hasn"t been queued."
+            "Timelock::executeTransaction: Transaction hasn't been queued."
         );
         require(
             getBlockTimestamp() >= eta,
-            "Timelock::executeTransaction: Transaction hasn"t surpassed time lock."
+            "Timelock::executeTransaction: Transaction hasn't surpassed time lock."
         );
         require(
             getBlockTimestamp() <= eta.add(GRACE_PERIOD),
