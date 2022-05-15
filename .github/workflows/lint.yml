@@ -22,7 +22,7 @@ jobs:
         - name: Lint Check
           run: yarn lint_contract
   lint_typescript:
-      name: Lint contracts
+      name: Lint typescript
       runs-on: ubuntu-latest
       env:
         JWT_SECRET: import-secret-from-env"
