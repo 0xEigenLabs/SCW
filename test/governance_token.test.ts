@@ -19,7 +19,7 @@ describe('Governance Token', () => {
     let other0
     let other1
     before(async () => {
-        [wallet, other0, other1] = await hre.ethers.getSigners()
+        ;[wallet, other0, other1] = await hre.ethers.getSigners()
     })
 
     beforeEach(async function () {
@@ -142,7 +142,7 @@ describe('Governance Token', () => {
         )
 
         // can mint up to 2%
-        const mintCap = BigNumber.from(await governanceToken.mintCap())
+        const mintCap = BigNumber.from(await governanceToken.MINT_CAP())
         const amount = supply.mul(mintCap).div(100)
         await governanceToken.mint(wallet.address, amount)
         expect(await governanceToken.balanceOf(wallet.address)).to.be.eq(
