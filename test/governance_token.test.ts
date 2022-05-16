@@ -1,11 +1,11 @@
 import chai, { expect } from 'chai'
 import { BigNumber, Contract, constants, utils, providers } from 'ethers'
-const { waffle, ethers } = require('hardhat')
+import { waffle, ethers } from 'hardhat'
 import { solidity } from 'ethereum-waffle'
 
-const hre = require('hardhat')
+import hre = require('hardhat')
 
-const helpers = require('./helpers')
+import helpers = require('./helpers')
 import GovernanceToken from '../artifacts/contracts/GovernanceToken.sol/GovernanceToken.json'
 
 chai.use(solidity)
@@ -37,7 +37,7 @@ describe('Governance Token', () => {
         const chain_id = network.chainId
 
         // Sign the string message
-        let digest = await helpers.signHashForGovernanceToken(
+        const digest = await helpers.signHashForGovernanceToken(
             governanceToken.address,
             chain_id,
             owner,
@@ -47,13 +47,13 @@ describe('Governance Token', () => {
             deadline
         )
 
-        let flatSig = await helpers.getSignatures(
+        const flatSig = await helpers.getSignatures(
             ethers.utils.arrayify(digest),
             [wallet]
         )
 
         // For Solidity, we need the expanded-format of a signature
-        let sig = ethers.utils.splitSignature(flatSig)
+        const sig = ethers.utils.splitSignature(flatSig)
 
         await governanceToken.permit(
             owner,
@@ -83,7 +83,7 @@ describe('Governance Token', () => {
             ethers.utils.parseEther('2')
         )
 
-        let currectVotes0 = await governanceToken.getCurrentVotes(
+        const currectVotes0 = await governanceToken.getCurrentVotes(
             other0.address
         )
         let currectVotes1 = await governanceToken.getCurrentVotes(
@@ -110,7 +110,7 @@ describe('Governance Token', () => {
     it('mints', async () => {
         const { timestamp: now } = await provider.getBlock('latest')
         console.log('Now is: ', now)
-        let factory = await ethers.getContractFactory('GovernanceToken')
+        const factory = await ethers.getContractFactory('GovernanceToken')
         const governanceToken = await factory.deploy(
             wallet.address,
             wallet.address,

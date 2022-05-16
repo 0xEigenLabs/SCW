@@ -1,11 +1,9 @@
-const { waffle, ethers } = require("hardhat");
-import { Wallet, utils, BigNumber, providers } from "ethers"
+import { ethers } from "hardhat";
+import { Wallet, utils } from "ethers"
 
 import { Wallet__factory } from "../typechain/factories/Wallet__factory"
 
 import { expect } from "chai"
-
-const provider = waffle.provider
 
 const getGas = async (tx) => {
   const receipt = await ethers.provider.getTransactionReceipt(tx.hash)
@@ -22,9 +20,9 @@ describe('Wallet Factory Test', () => {
   let owner
   let signers
 
-  before(async function() {
+  before(async function () {
     [owner] = await ethers.getSigners();
-    signers = [ Wallet.createRandom().address, Wallet.createRandom().address ]
+    signers = [Wallet.createRandom().address, Wallet.createRandom().address]
   })
   it("Should deploy master wallet contract", async function () {
     wallet = await (await ethers.getContractFactory("Wallet")).deploy();
@@ -41,7 +39,7 @@ describe('Wallet Factory Test', () => {
 
   it("Should deploy a cloned wallet contract and allow initialization of custom wallet info", async function () {
     // Get the expected address
-    const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2,31))
+    const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2, 31))
     const walletAddress = await proxy.getAddress(salt);
     expect(walletAddress).to.exist;
 
@@ -54,11 +52,11 @@ describe('Wallet Factory Test', () => {
     console.log("wallet 1 address", wallet1.address)
 
 
-    let encoder = ethers.utils.defaultAbiCoder
-    let data = encoder.encode(["address[]"], [signers])
+    const encoder = ethers.utils.defaultAbiCoder
+    const data = encoder.encode(["address[]"], [signers])
 
     let factory = await ethers.getContractFactory("ModuleRegistry")
-    let registry = await factory.deploy()
+    const registry = await factory.deploy()
     await registry.deployed()
 
     factory = await ethers.getContractFactory("SecurityModule")
@@ -66,7 +64,7 @@ describe('Wallet Factory Test', () => {
     await sm.deployed()
     await sm.initialize(registry.address, 120, 120)
 
-    let initTx = await wallet1.initialize([sm.address], [data]);
+    const initTx = await wallet1.initialize([sm.address], [data]);
     await initTx.wait()
     expect(await wallet1.authorised(sm.address)).to.equal(true)
 
@@ -78,6 +76,6 @@ describe('Wallet Factory Test', () => {
   });
 
   it("Minimal Proxy deployment should cost 10x less than a standard deployment", async function () {
-    expect(Number(walletStandaloneGas)).to.be.greaterThan(Number(walletProxyGas)*10)
+    expect(Number(walletStandaloneGas)).to.be.greaterThan(Number(walletProxyGas) * 10)
   });
 });

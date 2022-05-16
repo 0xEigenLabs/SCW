@@ -1,15 +1,12 @@
-const { waffle, ethers } = require('hardhat')
-import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
+import { waffle, ethers } from 'hardhat'
+import { utils } from 'ethers'
 
-const chai = require('chai')
-const { solidity, MockProvider } = require('ethereum-waffle')
+import chai = require('chai')
+import { solidity } from 'ethereum-waffle'
 chai.use(solidity)
 const { expect } = chai
-const hre = require('hardhat')
-
-const { getContractAddress } = require('@ethersproject/address')
-
-const helpers = require('./helpers')
+import hre = require('hardhat')
+import helpers = require('./helpers')
 
 const provider = waffle.provider
 
@@ -33,9 +30,9 @@ const UMABI = [
 import { Contract, constants } from 'ethers'
 
 const DELAY = 60 * 60 * 24 * 2
-let lockPeriod = 5 //s
-let recoveryPeriod = 120 //s
-let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
+const lockPeriod = 5 //s
+const recoveryPeriod = 120 //s
+const expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
 describe('GovernorAlpha', () => {

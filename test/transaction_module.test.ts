@@ -1,21 +1,12 @@
-const {waffle, ethers} = require("hardhat");
-import { Wallet, utils, BigNumber, providers, Transaction } from "ethers";
-
-const chai = require("chai");
-const { solidity } = require("ethereum-waffle");
+import { waffle, ethers } from "hardhat";
+import { Wallet, utils } from "ethers";
+import chai = require("chai");
+import { solidity } from "ethereum-waffle";
 chai.use(solidity);
 const { expect } = chai;
-const hre = require("hardhat");
-
-import { ModuleRegistry } from "../typechain/ModuleRegistry"
-import { ModuleRegistry__factory } from "../typechain/factories/ModuleRegistry__factory"
-import { SecurityModule__factory } from "../typechain/factories/SecurityModule__factory"
-import { TransactionModule__factory } from "../typechain/factories/TransactionModule__factory"
-import { Wallet__factory } from "../typechain/factories/Wallet__factory" 
-import {BaseModule__factory} from "../typechain/factories/BaseModule__factory"
-
-
-const helpers = require("./helpers");
+import hre = require("hardhat");
+import { Wallet__factory } from "../typechain/factories/Wallet__factory"
+import helpers = require("./helpers");
 
 const provider = waffle.provider
 
@@ -37,10 +28,9 @@ const TMABI = [
     "function addModule(address, address, address, bytes)"
 ]
 
-let lockPeriod = 5 //s
-let recoveryPeriod = 120 //s
+const lockPeriod = 5 //s
+const recoveryPeriod = 120 //s
 let expireTime
-const delay = ms => new Promise(res => setTimeout(res, ms));
 
 describe("Transaction test", () => {
     before(async () => {
@@ -73,7 +63,7 @@ describe("Transaction test", () => {
             ethers.utils.formatBytes32String("TM")
         );
         await res.wait()
-        let res1 = await moduleRegistry.registerModule(
+        const res1 = await moduleRegistry.registerModule(
             securityModule.address,
             ethers.utils.formatBytes32String("SM")
         );
@@ -91,18 +81,18 @@ describe("Transaction test", () => {
         user3 = Wallet.createRandom().connect(provider)
 
         console.log("unsorted", user1.address, user2.address, user3.address)
-        let signers = [user1, user2, user3]
-        signers.sort(function(a, b) { return a.address - b.address })
+        const signers = [user1, user2, user3]
+        signers.sort(function (a, b) { return a.address - b.address })
         user1 = signers[0];
         user2 = signers[1];
         user3 = signers[2];
 
         console.log("sorted", user1.address, user2.address, user3.address)
 
-        let proxy = await (await ethers.getContractFactory("Proxy")).deploy(masterWallet.address);
+        const proxy = await (await ethers.getContractFactory("Proxy")).deploy(masterWallet.address);
         console.log("proxy address", proxy.address)
-        const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2,31))
-        let walletAddress = await proxy.getAddress(salt);
+        const salt = utils.formatBytes32String(utils.sha256(utils.randomBytes(32)).substr(2, 31))
+        const walletAddress = await proxy.getAddress(salt);
         expect(walletAddress).to.exist;
         console.log("proxy wallet", walletAddress)
 
@@ -116,7 +106,7 @@ describe("Transaction test", () => {
          * There are two ways to add modules to the wallet:
          * 1.Initialize the wallet with the modules.
          * 2.Call the wallet's authoriseModule method.
-         */ 
+         */
         // 1:Initialize the wallet with the modules.
         // let modules = [ transactionModule.address, securityModule.address]
         // let encoder = ethers.utils.defaultAbiCoder
@@ -128,24 +118,24 @@ describe("Transaction test", () => {
         // await initTx.wait()
 
         // 2:Call the wallet's authoriseModule method.
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("1.2")})).wait()
-        let encoder = ethers.utils.defaultAbiCoder
+        await (await owner.sendTransaction({ to: wallet1.address, value: ethers.utils.parseEther("1.2") })).wait()
+        const encoder = ethers.utils.defaultAbiCoder
         // You must initialize the wallet with at least one module.And if you want to authorise another module, you need to call multi-signature, which means securityModule is a must.
         await (await wallet1.initialize([securityModule.address], [encoder.encode(["address[]"], [[user1.address, user2.address]])])).wait()
 
-        let du = ethers.utils.parseEther("15")
-        let lap = ethers.utils.parseEther("10")
-        let tmData = encoder.encode(["uint", "uint"], [du, lap])
+        const du = ethers.utils.parseEther("15")
+        const lap = ethers.utils.parseEther("10")
+        const tmData = encoder.encode(["uint", "uint"], [du, lap])
 
-        let amount = 0
-        let iface = new ethers.utils.Interface(TMABI)
-        let data = iface.encodeFunctionData("addModule", [moduleRegistry.address, wallet1.address, transactionModule.address, tmData])
+        const amount = 0
+        const iface = new ethers.utils.Interface(TMABI)
+        const data = iface.encodeFunctionData("addModule", [moduleRegistry.address, wallet1.address, transactionModule.address, tmData])
         sequenceId = await wallet1.getNextSequenceId()
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800;
-        let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
-        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
-        
+        const hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
+        const signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+
         // When authorising module, you need to call multi-signature.
         res = await securityModule.connect(owner).multicall(
             wallet1.address,
@@ -160,26 +150,26 @@ describe("Transaction test", () => {
 
     })
 
-    beforeEach(async function() {
-        await (await owner.sendTransaction({to: user1.address, value: ethers.utils.parseEther("0.01")})).wait()
-        await (await owner.sendTransaction({to: user2.address, value: ethers.utils.parseEther("0.01")})).wait()
-        await (await owner.sendTransaction({to: user3.address, value: ethers.utils.parseEther("0.01")})).wait()
+    beforeEach(async function () {
+        await (await owner.sendTransaction({ to: user1.address, value: ethers.utils.parseEther("0.01") })).wait()
+        await (await owner.sendTransaction({ to: user2.address, value: ethers.utils.parseEther("0.01") })).wait()
+        await (await owner.sendTransaction({ to: user3.address, value: ethers.utils.parseEther("0.01") })).wait()
         // deposit to wallet
-        let depositAmount = ethers.utils.parseEther("0.1")
-        await owner.sendTransaction({to: wallet1.address, value: depositAmount})
+        const depositAmount = ethers.utils.parseEther("0.1")
+        await owner.sendTransaction({ to: wallet1.address, value: depositAmount })
         sequenceId = await wallet1.getNextSequenceId()
         const { timestamp: now } = await provider.getBlock('latest')
         expireTime = now + 1800;
     })
 
-    it("change transaction module's daily upbound or large amount payment", async function() {
+    it("change transaction module's daily upbound or large amount payment", async function () {
         let du = await transactionModule.getDailyUpbound(wallet1.address)
         let lap = await transactionModule.getLargeAmountPayment(wallet1.address)
         expect(du).eq(ethers.utils.parseEther("15"))
         expect(lap).eq(ethers.utils.parseEther("10"))
 
         // change transaction parameters
-        let amount = 0
+        const amount = 0
         let iface = new ethers.utils.Interface(TMABI)
         let data = iface.encodeFunctionData("setTMParameter", [wallet1.address, ethers.utils.parseEther("14"), ethers.utils.parseEther("9")])
         let hash = await helpers.signHash(transactionModule.address, amount, data, /*expireTime,*/ sequenceId)
@@ -212,7 +202,7 @@ describe("Transaction test", () => {
             signatures
         );
         await res.wait()
-        
+
         // await (await transactionModule.connect(owner).setTMParameter(wallet1.address, ethers.utils.parseEther("15"), ethers.utils.parseEther("10"))).wait()
         du = await transactionModule.getDailyUpbound(wallet1.address)
         lap = await transactionModule.getLargeAmountPayment(wallet1.address)
@@ -220,102 +210,102 @@ describe("Transaction test", () => {
         expect(lap).eq(ethers.utils.parseEther("10"))
     })
 
-    it("execute transaction test", async function() {
+    it("execute transaction test", async function () {
         console.log(owner.address)
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("0.01")})).wait()
-        let user3StartEther = await provider.getBalance(user3.address);
-        
+        await (await owner.sendTransaction({ to: wallet1.address, value: ethers.utils.parseEther("0.01") })).wait()
+        const user3StartEther = await provider.getBalance(user3.address);
+
         console.log(user3StartEther.toString())
-        let amount = ethers.utils.parseEther("0.01")
+        const amount = ethers.utils.parseEther("0.01")
         sequenceId = await wallet1.getNextSequenceId()
-        
-        let res = await transactionModule.connect(owner).executeTransaction(
+
+        const res = await transactionModule.connect(owner).executeTransaction(
             wallet1.address,
             [user3.address, amount, "0x", sequenceId, expireTime]
         );
         await res.wait();
-        
-        let user3EndEther = (await provider.getBalance(user3.address));
+
+        const user3EndEther = (await provider.getBalance(user3.address));
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
 
-    it("execute ERC20 token transaction test", async function() {
+    it("execute ERC20 token transaction test", async function () {
         console.log(owner.address)
 
-        let erc20Artifact = await hre.artifacts.readArtifact("TestToken");
+        const erc20Artifact = await hre.artifacts.readArtifact("TestToken");
         const TestTokenABI = erc20Artifact.abi
 
-        let ownerContract = new ethers.Contract(testToken.address, TestTokenABI, owner)
-        let ownerBalance = (await ownerContract.balanceOf(owner.address)).toString()
+        const ownerContract = new ethers.Contract(testToken.address, TestTokenABI, owner)
+        const ownerBalance = (await ownerContract.balanceOf(owner.address)).toString()
         console.log("owner balance", ownerBalance)
 
         await (await ownerContract.transfer(wallet1.address, 10)).wait()
 
-        let user3Contract = new ethers.Contract(testToken.address, TestTokenABI, user3)
-        let user3StartBalance = (await user3Contract.balanceOf(user3.address))
+        const user3Contract = new ethers.Contract(testToken.address, TestTokenABI, user3)
+        const user3StartBalance = (await user3Contract.balanceOf(user3.address))
         console.log("user3StartBalance ", user3StartBalance.toString())
-        
-        let amount = 1
+
+        const amount = 1
         sequenceId = await wallet1.getNextSequenceId()
-        let iface = new ethers.utils.Interface(TestTokenABI)
-        let txData = iface.encodeFunctionData("transfer", [user3.address, amount])
-        
-        let res = await transactionModule.connect(owner).executeTransaction(
+        const iface = new ethers.utils.Interface(TestTokenABI)
+        const txData = iface.encodeFunctionData("transfer", [user3.address, amount])
+
+        const res = await transactionModule.connect(owner).executeTransaction(
             wallet1.address,
             [testToken.address, 0, txData, sequenceId, expireTime]
         );
         await res.wait()
 
-        let user3EndBalance = (await user3Contract.balanceOf(user3.address))
+        const user3EndBalance = (await user3Contract.balanceOf(user3.address))
         console.log("user3EndBalance ", user3EndBalance.toString())
         expect(user3EndBalance).eq(user3StartBalance.add(amount))
     });
 
-    it("execute large transaction test", async function() {
-        await (await owner.sendTransaction({to: wallet1.address, value: ethers.utils.parseEther("16")})).wait()
+    it("execute large transaction test", async function () {
+        await (await owner.sendTransaction({ to: wallet1.address, value: ethers.utils.parseEther("16") })).wait()
 
-        let user3StartEther = await provider.getBalance(user3.address);
+        const user3StartEther = await provider.getBalance(user3.address);
         console.log(user3StartEther.toString())
 
-        let amount = ethers.utils.parseEther("11")
-        let amountMulti = 0
+        const amount = ethers.utils.parseEther("11")
+        const amountMulti = 0
         sequenceId = await wallet1.getNextSequenceId()
-        let iface = new ethers.utils.Interface(TMABI)
-        let largeTxData = iface.encodeFunctionData("executeLargeTransaction", [wallet1.address, user3.address, amount, "0x"])
-        let hash = await helpers.signHash(transactionModule.address, amountMulti, largeTxData, /*expireTime,*/ sequenceId)
-        let signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
+        const iface = new ethers.utils.Interface(TMABI)
+        const largeTxData = iface.encodeFunctionData("executeLargeTransaction", [wallet1.address, user3.address, amount, "0x"])
+        const hash = await helpers.signHash(transactionModule.address, amountMulti, largeTxData, /*expireTime,*/ sequenceId)
+        const signatures = await helpers.getSignatures(ethers.utils.arrayify(hash), [user1, user2])
 
-        let res = await securityModule.connect(owner).multicall(
+        const res = await securityModule.connect(owner).multicall(
             wallet1.address,
             [transactionModule.address, amountMulti, largeTxData, sequenceId, expireTime],
             signatures
         );
         await res.wait()
 
-        let user3EndEther = (await provider.getBalance(user3.address));
+        const user3EndEther = (await provider.getBalance(user3.address));
         console.log(user3EndEther.toString())
         expect(user3EndEther).eq(user3StartEther.add(amount))
     });
 
-    it("test lock", async() => {
-        let tx = await securityModule.connect(owner).lock(wallet1.address)
+    it("test lock", async () => {
+        const tx = await securityModule.connect(owner).lock(wallet1.address)
         await tx.wait()
 
         // When the user call the global lock, he or she can't call executeTransaction until the global lock is released.
-        let amount = ethers.utils.parseEther("0.01")
+        const amount = ethers.utils.parseEther("0.01")
         sequenceId = await wallet1.getNextSequenceId()
-        
+
         expect(transactionModule.connect(owner).executeTransaction(
             wallet1.address,
             [user3.address, amount, "0x", sequenceId, expireTime]
         )).to.be.revertedWith("BM: wallet locked globally");
     })
 
-    it("daily limit check test", async function() {
+    it("daily limit check test", async function () {
         // In the last test case, wallet1 transferred 11 eth to user3, and in this test case wallet1 transferred 5 eth to user3. This transfer triggered the daily limit.
-        let amount = ethers.utils.parseEther("5")
+        const amount = ethers.utils.parseEther("5")
         sequenceId = await wallet1.getNextSequenceId()
-        
+
         await expect(transactionModule.connect(owner).executeTransaction(
             wallet1.address,
             [user3.address, amount, "0x", sequenceId, expireTime]

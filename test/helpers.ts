@@ -1,4 +1,4 @@
-const { ethers, waffle } = require('hardhat')
+import { ethers } from 'hardhat'
 import { BigNumber, utils } from 'ethers'
 import { Contract, Wallet, providers } from 'ethers'
 
@@ -19,8 +19,8 @@ export const showBalances = async () => {
     for (let i = 0; i < accounts.length; i++) {
         console.log(
             accounts[i] +
-                ': ' +
-                utils.formatEther(provider.getBalance(accounts[i])),
+            ': ' +
+            utils.formatEther(provider.getBalance(accounts[i])),
             'ether'
         )
     }
@@ -127,7 +127,7 @@ export async function getSignatures(
     returnBadSignatures = false
 ) {
     // Sort the signers
-    let sortedSigners = signers
+    const sortedSigners = signers
 
     let sigs = '0x'
     for (let index = 0; index < sortedSigners.length; index += 1) {
@@ -220,7 +220,7 @@ export async function governanceFixture(
  */
 exports.getNextContractAddress = async (address: string) => {
     const nonce = await provider.getTransactionCount(address)
-    let transaction = {
+    const transaction = {
         from: address,
         nonce: nonce,
     }
@@ -228,7 +228,7 @@ exports.getNextContractAddress = async (address: string) => {
 }
 
 export function toHexString(byteArray) {
-    var s = '0x'
+    let s = '0x'
     byteArray.forEach(function (byte) {
         s += ('0' + (byte & 0xff).toString(16)).slice(-2)
     })
