@@ -19,7 +19,7 @@ describe('Governance Token', () => {
     let other0
     let other1
     before(async () => {
-        ;[wallet, other0, other1] = await hre.ethers.getSigners()
+        [wallet, other0, other1] = await hre.ethers.getSigners()
     })
 
     beforeEach(async function () {
