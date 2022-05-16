@@ -1,5 +1,4 @@
-// contracts/GLDToken.sol
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
@@ -18,10 +17,10 @@ contract GovernanceToken is ERC20("GovernanceToken", "GT") {
     uint256 public mintingAllowedAfter;
 
     /// @notice Minimum time between mints
-    uint32 public constant minimumTimeBetweenMints = 1 days * 365;
+    uint32 public constant MINMUM_TIME_BETWEEN_MINTS = 1 days * 365;
 
     // @notice Cap on the percentage of totalSupply that can be minted at each mint
-    uint8 public constant mintCap = 2;
+    uint8 public constant MINT_CAP = 2;
 
     /// @notice A record of each accounts delegate
     mapping(address => address) public delegates;
@@ -84,7 +83,7 @@ contract GovernanceToken is ERC20("GovernanceToken", "GT") {
         address account,
         address minter_,
         uint256 mintingAllowedAfter_
-    ) public {
+    ) {
         require(
             mintingAllowedAfter_ >= block.timestamp,
             "GovernanceToken::constructor: minting can only begin after deployment"
@@ -132,13 +131,13 @@ contract GovernanceToken is ERC20("GovernanceToken", "GT") {
         // record the mint
         mintingAllowedAfter = SafeMath.add(
             block.timestamp,
-            minimumTimeBetweenMints
+            MINMUM_TIME_BETWEEN_MINTS
         );
 
         // mint the amount
         uint96 amount = SafeCast.toUint96(rawAmount);
         require(
-            amount <= SafeMath.div(SafeMath.mul(initTotalSupply, mintCap), 100),
+            amount <= SafeMath.div(SafeMath.mul(initTotalSupply, MINT_CAP), 100),
             "GovernanceToken::mint: exceeded mint cap"
         );
 

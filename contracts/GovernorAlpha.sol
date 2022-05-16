@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 pragma experimental ABIEncoderV2;
 
 contract GovernorAlpha {
     /// @notice The name of this contract
-    string public constant name = "Eigen Governor Alpha";
+    string public constant NAME = "Eigen Governor Alpha";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
     function quorumVotes() public pure returns (uint256) {
@@ -121,7 +122,7 @@ contract GovernorAlpha {
     /// @notice An event emitted when a proposal has been executed in the Timelock
     event ProposalExecuted(uint256 id);
 
-    constructor(address timelock_, address eigen_) public {
+    constructor(address timelock_, address eigen_)  {
         timelock = TimelockInterface(timelock_);
         eigen = EigenInterface(eigen_);
     }
@@ -354,7 +355,7 @@ contract GovernorAlpha {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 DOMAIN_TYPEHASH,
-                keccak256(bytes(name)),
+                keccak256(bytes(NAME)),
                 block.chainid,
                 address(this)
             )
