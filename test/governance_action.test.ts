@@ -684,6 +684,7 @@ describe('Governance Action', () => {
         const latestBlock = await provider.getBlock('latest')
         const blockRange = [0, latestBlock.number]
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const [proposal, _actions, _admin, createProposalLogs] =
             await Promise.all([
                 governorAlpha.proposals(proposalId),
