@@ -1,11 +1,10 @@
-const { ethers, waffle } = require('hardhat')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { ethers } = require('hardhat')
 import { BigNumber, utils } from 'ethers'
 import { Contract, Wallet, providers } from 'ethers'
 
-import { Wallet__factory } from '../typechain/factories/Wallet__factory'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
-
 const provider = ethers.provider
 
 export const wait = async (ms: number) => {
@@ -39,16 +38,6 @@ export interface Transacted {
     toAddress: string
     value: BigNumber
     data: string
-}
-
-async function getWalletInstance(walletName, contract, signer) {
-    let wallet
-    switch (walletName) {
-        case 'Wallet':
-            wallet = await Wallet__factory.connect(contract, signer)
-            break
-    }
-    return wallet
 }
 
 export const addHexPrefix = function (str: string): string {
@@ -127,7 +116,7 @@ export async function getSignatures(
     returnBadSignatures = false
 ) {
     // Sort the signers
-    let sortedSigners = signers
+    const sortedSigners = signers
 
     let sigs = '0x'
     for (let index = 0; index < sortedSigners.length; index += 1) {
@@ -220,7 +209,7 @@ export async function governanceFixture(
  */
 exports.getNextContractAddress = async (address: string) => {
     const nonce = await provider.getTransactionCount(address)
-    let transaction = {
+    const transaction = {
         from: address,
         nonce: nonce,
     }
@@ -228,7 +217,7 @@ exports.getNextContractAddress = async (address: string) => {
 }
 
 export function toHexString(byteArray) {
-    var s = '0x'
+    let s = '0x'
     byteArray.forEach(function (byte) {
         s += ('0' + (byte & 0xff).toString(16)).slice(-2)
     })

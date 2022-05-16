@@ -1,19 +1,14 @@
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { waffle, ethers } = require('hardhat')
-import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
-
+import { Wallet, utils, BigNumber } from 'ethers'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const chai = require('chai')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { solidity } = require('ethereum-waffle')
 chai.use(solidity)
 const { expect } = chai
-const hre = require('hardhat')
-
-const { getContractAddress } = require('@ethersproject/address')
-
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const helpers = require('./helpers')
-
-let governanceToken
-let timelock
-let governorAlpha
 
 const provider = waffle.provider
 
@@ -27,7 +22,6 @@ let user1
 let user2
 let user3
 let sequenceId
-let loadFixture
 // let wallet
 const salts = [utils.formatBytes32String('1'), utils.formatBytes32String('2')]
 const SMABI = [
@@ -41,15 +35,13 @@ const SMABI = [
 import SecurityModule from '../artifacts/contracts/SecurityModule.sol/SecurityModule.json'
 
 import { Wallet__factory } from '../typechain/factories/Wallet__factory'
-import { ModuleRegistry } from '../typechain/ModuleRegistry'
-import { ModuleRegistry__factory } from '../typechain/factories/ModuleRegistry__factory'
 import { SecurityModule__factory } from '../typechain/factories/SecurityModule__factory'
 
-import { Contract, constants } from 'ethers'
+import { Contract } from 'ethers'
 
 const DELAY = 60 * 60 * 24 * 2
-let lockPeriod = 5 //s
-let recoveryPeriod = 120 //s
+const lockPeriod = 5 //s
+const recoveryPeriod = 120 //s
 let expireTime
 const delay = (ms) => new Promise((res) => setTimeout(res, ms))
 
@@ -69,7 +61,7 @@ describe('Governance Action', () => {
         console.log('ModuleRegistry is deployed at: ', moduleRegistry.address)
 
         factory = await ethers.getContractFactory('SecurityModule')
-        let securityModule = await factory.deploy()
+        const securityModule = await factory.deploy()
         await securityModule.deployed()
         console.log('SecurityModule is deployed at: ', securityModule.address)
 
@@ -105,7 +97,7 @@ describe('Governance Action', () => {
         console.log('Proxied Security Module Initialized')
 
         // register the proxy module
-        let res = await moduleRegistry.registerModule(
+        const res = await moduleRegistry.registerModule(
             securityModuleProxy.address,
             ethers.utils.formatBytes32String('SM')
         )
@@ -117,7 +109,7 @@ describe('Governance Action', () => {
         console.log('master wallet', masterWallet.address)
 
         console.log('unsorted', user1.address, user2.address, user3.address)
-        let signers = [user1, user2, user3]
+        const signers = [user1, user2, user3]
         signers.sort(function (a, b) {
             return a.address - b.address
         })
@@ -127,11 +119,11 @@ describe('Governance Action', () => {
 
         console.log('sorted', user1.address, user2.address, user3.address)
 
-        let proxy = await (
+        const proxy = await (
             await ethers.getContractFactory('Proxy')
         ).deploy(masterWallet.address)
         console.log('proxy address', proxy.address)
-        let walletAddress = await proxy.getAddress(salts[0])
+        const walletAddress = await proxy.getAddress(salts[0])
         expect(walletAddress).to.exist
         console.log('proxy wallet', walletAddress)
 
@@ -141,12 +133,12 @@ describe('Governance Action', () => {
         wallet1 = Wallet__factory.connect(walletAddress, owner)
         console.log('wallet address', wallet1.address)
 
-        let modules = [securityModuleProxy.address]
-        let encoder = ethers.utils.defaultAbiCoder
-        let data = [
+        const modules = [securityModuleProxy.address]
+        const encoder = ethers.utils.defaultAbiCoder
+        const data = [
             encoder.encode(['address[]'], [[user1.address, user2.address]]),
         ]
-        let initTx = await wallet1.initialize(modules, data)
+        const initTx = await wallet1.initialize(modules, data)
         await initTx.wait()
     })
 
@@ -174,7 +166,7 @@ describe('Governance Action', () => {
             })
         ).wait()
         // deposit to wallet
-        let depositAmount = ethers.utils.parseEther('0.1')
+        const depositAmount = ethers.utils.parseEther('0.1')
         await owner.sendTransaction({
             to: wallet1.address,
             value: depositAmount,
@@ -183,8 +175,8 @@ describe('Governance Action', () => {
 
         // FIXME:
         // Every time we update a security module with proxy set implementation
-        let factory = await ethers.getContractFactory('SecurityModule')
-        let securityModule = await factory.deploy()
+        const factory = await ethers.getContractFactory('SecurityModule')
+        const securityModule = await factory.deploy()
         await securityModule.deployed()
         console.log(
             'A New SecurityModule is deployed at: ',
@@ -248,7 +240,7 @@ describe('Governance Action', () => {
         expect(rp).eq(120)
 
         // change security parameters
-        let amount = 0
+        const amount = 0
         let iface = new ethers.utils.Interface(SMABI)
         let data = iface.encodeFunctionData('setSecurityPeriod', [
             wallet1.address,
@@ -338,24 +330,24 @@ describe('Governance Action', () => {
     })
 
     it('proxy should trigger recovery', async function () {
-        let sm = SecurityModule__factory.connect(
+        const sm = SecurityModule__factory.connect(
             proxiedSerurityModule.address,
             user1
         )
 
-        let amount = 0
+        const amount = 0
         let iface = new ethers.utils.Interface(SMABI)
         let data = iface.encodeFunctionData('triggerRecovery', [
             wallet1.address,
             user3.address,
         ])
-        let hash = await helpers.signHash(
+        const hash = await helpers.signHash(
             proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
         )
-        let signatures = await helpers.getSignatures(
+        const signatures = await helpers.getSignatures(
             ethers.utils.arrayify(hash),
             [user1, user2]
         )
@@ -382,7 +374,7 @@ describe('Governance Action', () => {
         iface = new ethers.utils.Interface(SMABI)
         data = iface.encodeFunctionData('cancelRecovery', [wallet1.address])
 
-        let tx = await proxiedSerurityModule
+        const tx = await proxiedSerurityModule
             .connect(user3)
             .cancelRecovery(wallet1.address)
         await tx.wait()
@@ -392,19 +384,19 @@ describe('Governance Action', () => {
     })
 
     it('proxy should revert recovery', async function () {
-        let amount = 0
-        let iface = new ethers.utils.Interface(SMABI)
-        let data = iface.encodeFunctionData('triggerRecovery', [
+        const amount = 0
+        const iface = new ethers.utils.Interface(SMABI)
+        const data = iface.encodeFunctionData('triggerRecovery', [
             wallet1.address,
             user3.address,
         ])
-        let hash = await helpers.signHash(
+        const hash = await helpers.signHash(
             proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
         )
-        let signatures = await helpers.getSignatures(
+        const signatures = await helpers.getSignatures(
             ethers.utils.arrayify(hash),
             [user1, user2]
         )
@@ -447,24 +439,24 @@ describe('Governance Action', () => {
         res1 = await wallet1.owner()
         expect(res1).eq(owner.address)
 
-        let amount = 0
-        let iface = new ethers.utils.Interface(SMABI)
-        let data = iface.encodeFunctionData('triggerRecovery', [
+        const amount = 0
+        const iface = new ethers.utils.Interface(SMABI)
+        const data = iface.encodeFunctionData('triggerRecovery', [
             wallet1.address,
             user3.address,
         ])
-        let hash = await helpers.signHash(
+        const hash = await helpers.signHash(
             proxiedSerurityModule.address,
             amount,
             data,
             /*expireTime,*/ sequenceId
         )
-        let signatures = await helpers.getSignatures(
+        const signatures = await helpers.getSignatures(
             ethers.utils.arrayify(hash),
             [user1, user2]
         )
 
-        let res = await proxiedSerurityModule
+        const res = await proxiedSerurityModule
             .connect(owner)
             .multicall(
                 wallet1.address,
@@ -480,7 +472,7 @@ describe('Governance Action', () => {
         await res.wait()
 
         // the new owner executes recovery
-        let tx = await proxiedSerurityModule
+        const tx = await proxiedSerurityModule
             .connect(user3)
             .executeRecovery(wallet1.address)
         await tx.wait()
@@ -518,7 +510,7 @@ describe('Governance Action', () => {
             user2.address
         )
         expect(res1).eq(true)
-        let tx = await proxiedSerurityModule
+        const tx = await proxiedSerurityModule
             .connect(user3)
             .replaceSigner(wallet1.address, owner.address, user1.address)
         await tx.wait()
@@ -549,7 +541,7 @@ describe('Governance Action', () => {
             user2.address
         )
         expect(res1).eq(true)
-        let tx = await proxiedSerurityModule
+        const tx = await proxiedSerurityModule
             .connect(user3)
             .removeSigner(wallet1.address, user2.address)
         await tx.wait()
@@ -601,7 +593,7 @@ describe('Governance Action', () => {
         tx = await proxiedSerurityModule.connect(user3).lock(wallet1.address)
         //await tx.wait()
 
-        let lockFlag = await proxiedSerurityModule.isLocked(wallet1.address)
+        const lockFlag = await proxiedSerurityModule.isLocked(wallet1.address)
         expect(lockFlag).eq(3)
 
         //wait for calm-down period
@@ -629,7 +621,7 @@ describe('Governance Action', () => {
     })
 
     it('proxy test lock', async () => {
-        let tx = await proxiedSerurityModule
+        const tx = await proxiedSerurityModule
             .connect(user3)
             .lock(wallet1.address)
         await tx.wait()
@@ -658,7 +650,7 @@ describe('Governance Action', () => {
         // a user who has enough token can submit a proposal
         await governanceToken.delegate(wallet.address)
 
-        let balance = await governanceToken.balanceOf(wallet.address)
+        const balance = await governanceToken.balanceOf(wallet.address)
 
         const proposalThreshold = await governorAlpha.proposalThreshold()
         // A user whose balance is greater than threshold could submit a proposal
@@ -735,7 +727,7 @@ describe('Governance Action', () => {
 
     it('update a new security module with GovernanceAlpha', async () => {
         let factory = await ethers.getContractFactory('SecurityModule')
-        let securityModule = await factory.deploy()
+        const securityModule = await factory.deploy()
         await securityModule.deployed()
         console.log(
             'A New SecurityModule is deployed at: ',
