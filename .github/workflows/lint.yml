@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:  
+  lint_contract:
+      name: Lint contracts
+      runs-on: ubuntu-latest
+      env:
+        JWT_SECRET: import-secret-from-env"
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - uses: actions/setup-node@v2
+          with:
+            node-version: 16.x
+        - run: yarn install --frozen-lockfile
+        - name: Lint Check
+          run: yarn lint_contract
+  lint_typescript:
+      name: Lint typescript
+      runs-on: ubuntu-latest
+      env:
+        JWT_SECRET: import-secret-from-env"
+      steps:
+        - uses: actions/checkout@v2
+          with:
+            fetch-depth: 0
+        - uses: actions/setup-node@v2
+          with:
+            node-version: 16.x
+        - run: yarn install --frozen-lockfile
+        - name: Lint Check
+          run: yarn lint_typescript
