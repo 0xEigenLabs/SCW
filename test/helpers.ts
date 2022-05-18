@@ -195,7 +195,7 @@ export async function governanceFixture(
         timelock.address,
         governanceToken.address
     )
-    await governanceToken.deployed()
+    await governorAlpha.deployed()
     expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
 
     return { governanceToken, timelock, governorAlpha }
