@@ -5,7 +5,14 @@
 // Runtime Environment's members available in the global scope.
 
 const { waffle, ethers } = require('hardhat')
-import { Wallet, utils, BigNumber, providers, Transaction } from 'ethers'
+import {
+    Contract,
+    Wallet,
+    utils,
+    BigNumber,
+    providers,
+    Transaction,
+} from 'ethers'
 
 const chai = require('chai')
 const { solidity } = require('ethereum-waffle')
@@ -20,13 +27,21 @@ import { TransactionModule__factory } from '../typechain/factories/TransactionMo
 import { Wallet__factory } from '../typechain/factories/Wallet__factory'
 import { BaseModule__factory } from '../typechain/factories/BaseModule__factory'
 
+import SecurityModule from '../artifacts/contracts/SecurityModule.sol/SecurityModule.json'
+import TransactionModule from '../artifacts/contracts/TransactionModule.sol/TransactionModule.json'
+
 const helpers = require('../test/helpers')
 const provider = waffle.provider
 
 let moduleRegistry
-let transactionModule
-let securityModule
 let testToken
+let governanceToken
+let timelock
+let governorAlpha
+let proxiedSecurityModule
+let securityModuleProxy
+let proxiedTransactionModule
+let transactionModuleProxy
 let masterWallet
 let wallet1
 let owner
@@ -44,6 +59,7 @@ const TMABI = [
 let lockPeriod = 172800 //s
 let recoveryPeriod = 172800 //s
 let expireTime = Math.floor(new Date().getTime() / 1000) + 1800 // 60 seconds
+const DELAY = 60 * 60 * 24 * 2
 
 async function main() {
     // Hardhat always runs the compile task when running scripts with its command
@@ -54,42 +70,134 @@ async function main() {
     // await hre.run('compile');
 
     // We get the contract to deploy
+    // FIXME
+    owner = await ethers.getSigner()
+    user1 = Wallet.createRandom().connect(provider)
+    user2 = Wallet.createRandom().connect(provider)
+    user3 = Wallet.createRandom().connect(provider)
 
-    let factory = await ethers.getContractFactory('ModuleRegistry')
+    // Firstly, deploy governance contracts
+    const { timestamp: now } = await provider.getBlock('latest')
+    let transactionCount = await owner.getTransactionCount()
+
+    const timelockAddress = Contract.getContractAddress({
+        from: owner.address,
+        nonce: transactionCount + 1,
+    })
+
+    let factory = await ethers.getContractFactory('GovernanceToken')
+    governanceToken = await factory.deploy(
+        owner.address,
+        timelockAddress,
+        now + 60 * 60
+    )
+    await governanceToken.deployed()
+    console.log('GovernanceToken ', governanceToken.address)
+
+    transactionCount = await owner.getTransactionCount()
+
+    // deploy timelock, controlled by what will be the governor
+    const governorAlphaAddress = Contract.getContractAddress({
+        from: owner.address,
+        nonce: transactionCount + 1,
+    })
+    factory = await ethers.getContractFactory('Timelock')
+    timelock = await factory.deploy(governorAlphaAddress, DELAY)
+    await timelock.deployed()
+    expect(timelock.address).to.be.eq(timelockAddress)
+    console.log('Timelock ', timelock.address)
+
+    // deploy governorAlpha
+    factory = await ethers.getContractFactory('GovernorAlpha')
+    governorAlpha = await factory.deploy(
+        timelock.address,
+        governanceToken.address
+    )
+    await governorAlpha.deployed()
+    expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
+    console.log('GovernorAlpha ', timelock.address)
+
+    factory = await ethers.getContractFactory('ModuleRegistry')
     moduleRegistry = await factory.deploy()
     await moduleRegistry.deployed()
 
     factory = await ethers.getContractFactory('SecurityModule')
-    securityModule = await factory.deploy()
+    let securityModule = await factory.deploy()
     await securityModule.deployed()
 
     factory = await ethers.getContractFactory('TransactionModule')
-    transactionModule = await factory.deploy()
+    let transactionModule = await factory.deploy()
     await transactionModule.deployed()
+
+    factory = await ethers.getContractFactory('ModuleProxy')
+    securityModuleProxy = await factory.deploy(owner.address)
+    await securityModuleProxy.deployed()
+
+    console.log(
+        'Set the admin of the securityModuleProxy (now the owner): ',
+        owner.address
+    )
+    await securityModuleProxy
+        .connect(owner)
+        .setImplementation(securityModule.address)
+
+    console.log(
+        'The proxy of SecurityModule is set with ',
+        securityModule.address
+    )
+
+    factory = await ethers.getContractFactory('ModuleProxy')
+    transactionModuleProxy = await factory.deploy(owner.address)
+    await transactionModuleProxy.deployed()
+
+    console.log(
+        'Set the admin of the transactionModuleProxy (now the owner): ',
+        timelock.address
+    )
+    await transactionModuleProxy
+        .connect(owner)
+        .setImplementation(transactionModule.address)
+
+    console.log(
+        'The proxy of TransactionModule is set with ',
+        transactionModule.address
+    )
 
     factory = await ethers.getContractFactory('TestToken')
     testToken = await factory.deploy(100000)
     await testToken.deployed()
     console.log('testToken address', testToken.address)
 
-    await securityModule.initialize(
+    proxiedSecurityModule = new ethers.Contract(
+        securityModuleProxy.address,
+        SecurityModule.abi,
+        owner
+    )
+
+    await proxiedSecurityModule.initialize(
         moduleRegistry.address,
         lockPeriod,
         recoveryPeriod
     )
-    console.log('secure module', securityModule.address)
+    console.log('security module', proxiedSecurityModule.address)
 
-    await transactionModule.initialize(moduleRegistry.address)
-    console.log('transaction module', transactionModule.address)
+    proxiedTransactionModule = new ethers.Contract(
+        transactionModuleProxy.address,
+        TransactionModule.abi,
+        owner
+    )
+
+    await proxiedTransactionModule.initialize(moduleRegistry.address)
+    console.log('transaction module', proxiedTransactionModule.address)
 
     // register the module
     let res = await moduleRegistry.registerModule(
-        transactionModule.address,
+        proxiedTransactionModule.address,
         ethers.utils.formatBytes32String('TM')
     )
     await res.wait()
     let res1 = await moduleRegistry.registerModule(
-        securityModule.address,
+        proxiedSecurityModule.address,
         ethers.utils.formatBytes32String('SM')
     )
     await res1.wait()
@@ -98,12 +206,6 @@ async function main() {
     masterWallet = await factory.deploy()
     await masterWallet.deployed()
     console.log('master wallet', masterWallet.address)
-
-    // FIXME
-    owner = await ethers.getSigner()
-    user1 = Wallet.createRandom().connect(provider)
-    user2 = Wallet.createRandom().connect(provider)
-    user3 = Wallet.createRandom().connect(provider)
 
     console.log('unsorted', user1.address, user2.address, user3.address)
     let signers = [user1, user2, user3]
@@ -157,7 +259,7 @@ async function main() {
     // You must initialize the wallet with at least one module.
     await (
         await wallet1.initialize(
-            [securityModule.address],
+            [proxiedSecurityModule.address],
             [encoder.encode(['address[]'], [[user1.address, user2.address]])]
         )
     ).wait()
@@ -171,12 +273,12 @@ async function main() {
     let data = iface.encodeFunctionData('addModule', [
         moduleRegistry.address,
         wallet1.address,
-        transactionModule.address,
+        proxiedTransactionModule.address,
         tmData,
     ])
     sequenceId = await wallet1.getNextSequenceId()
     let hash = await helpers.signHash(
-        transactionModule.address,
+        proxiedTransactionModule.address,
         amount,
         data,
         /*expireTime,*/ sequenceId
@@ -187,11 +289,17 @@ async function main() {
     ])
 
     // When authorising module, you need to call multi-signature.
-    res = await securityModule
+    res = await proxiedSecurityModule
         .connect(owner)
         .multicall(
             wallet1.address,
-            [transactionModule.address, amount, data, sequenceId, expireTime],
+            [
+                proxiedTransactionModule.address,
+                amount,
+                data,
+                sequenceId,
+                expireTime,
+            ],
             signatures
         )
     await res.wait()
@@ -199,6 +307,27 @@ async function main() {
     // let res2 = await wallet1.connect(owner).authoriseModule(transactionModule.address, true, tmData)
     // await res2.wait()
     console.log('Wallet created', wallet1.address)
+
+    // Finally, change the admin of the proxies into timelock
+    console.log('Change the admin for proxies: ')
+    console.log('                              from: ', owner.address)
+    console.log(
+        '                              to (timelock): ',
+        timelock.address
+    )
+    let oldAdmin = await securityModuleProxy.admin()
+    expect(oldAdmin).to.be.eq(owner.address)
+    res = await securityModuleProxy.connect(owner).setAdmin(timelock.address)
+    await res.wait()
+    let newAdmin = await securityModuleProxy.admin()
+    expect(newAdmin).to.be.eq(timelock.address)
+
+    oldAdmin = await transactionModuleProxy.admin()
+    expect(oldAdmin).to.be.eq(owner.address)
+    res = await transactionModuleProxy.connect(owner).setAdmin(timelock.address)
+    await res.wait()
+    newAdmin = await transactionModuleProxy.admin()
+    expect(newAdmin).to.be.eq(timelock.address)
 }
 
 // We recommend this pattern to be able to use async/await everywhere
