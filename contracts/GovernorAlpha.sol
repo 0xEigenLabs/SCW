@@ -270,7 +270,7 @@ contract GovernorAlpha {
 
         Proposal storage proposal = proposals[proposalId];
         require(
-            eigen.getPriorVotes(proposal.proposer, sub256(block.number, 1)) <
+            msg.sender == proposal.proposer || eigen.getPriorVotes(proposal.proposer, sub256(block.number, 1)) <
                 proposalThreshold(),
             "GovernorAlpha::cancel: proposer above threshold"
         );
