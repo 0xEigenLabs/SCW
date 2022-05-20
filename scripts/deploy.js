@@ -115,7 +115,7 @@ async function main() {
     )
     await governorAlpha.deployed()
     expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
-    console.log('GovernorAlpha ', timelock.address)
+    console.log('GovernorAlpha ', governorAlpha.address)
 
     factory = await ethers.getContractFactory('ModuleRegistry')
     moduleRegistry = await factory.deploy()
@@ -152,7 +152,7 @@ async function main() {
 
     console.log(
         'Set the admin of the transactionModuleProxy (now the owner): ',
-        timelock.address
+        owner.address
     )
     await transactionModuleProxy
         .connect(owner)
