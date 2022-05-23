@@ -93,6 +93,11 @@ async function main() {
     )
     await governanceToken.deployed()
     console.log('GovernanceToken ', governanceToken.address)
+    console.log(
+        `GovernanceToken constructor(${owner.address}, ${timelockAddress}, ${
+            now + 60 * 60
+        })`
+    )
 
     transactionCount = await owner.getTransactionCount()
 
@@ -106,6 +111,7 @@ async function main() {
     await timelock.deployed()
     expect(timelock.address).to.be.eq(timelockAddress)
     console.log('Timelock ', timelock.address)
+    console.log(`Timelock constructor(${governorAlphaAddress}, ${DELAY})`)
 
     // deploy governorAlpha
     factory = await ethers.getContractFactory('GovernorAlpha')
@@ -116,6 +122,9 @@ async function main() {
     await governorAlpha.deployed()
     expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
     console.log('GovernorAlpha ', governorAlpha.address)
+    console.log(
+        `GovernorAlpha constructor(${timelock.address}, ${governanceToken.address})`
+    )
 
     factory = await ethers.getContractFactory('ModuleRegistry')
     moduleRegistry = await factory.deploy()
