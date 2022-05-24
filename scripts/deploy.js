@@ -20,6 +20,9 @@ chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
 
+import { config as dotenvConfig } from 'dotenv'
+dotenvConfig({ path: resolve(__dirname, './.env') })
+
 import { ModuleRegistry } from '../typechain/ModuleRegistry'
 import { ModuleRegistry__factory } from '../typechain/factories/ModuleRegistry__factory'
 import { SecurityModule__factory } from '../typechain/factories/SecurityModule__factory'
@@ -86,12 +89,27 @@ async function main() {
     })
 
     let factory = await ethers.getContractFactory('GovernanceToken')
-    governanceToken = await factory.deploy(
-        owner.address,
-        timelockAddress,
-        now + 60 * 60
-    )
-    await governanceToken.deployed()
+    if (process.env['GOVERNANCE_TOKEN']) {
+        const GovernanceTokenArtifact = await hre.artifacts.readArtifact(
+            'GovernanceToken'
+        )
+        const GovernanceTokenABI = GovernanceTokenArtifact.abi
+        governanceToken = ethers.Contract(
+            process.env['GOVERNANCE_TOKEN'],
+            GovernanceTokenABI,
+            owner
+        )
+        console.log('GovernanceToken has been deployed before')
+    } else {
+        governanceToken = await factory.deploy(
+            owner.address,
+            timelockAddress,
+            now + 60 * 60
+        )
+        await governanceToken.deployed()
+        console.log('GovernanceToken is now newly deployed')
+    }
+
     console.log('GovernanceToken ', governanceToken.address)
     console.log(
         `GovernanceToken constructor(${owner.address}, ${timelockAddress}, ${
@@ -107,20 +125,43 @@ async function main() {
         nonce: transactionCount + 1,
     })
     factory = await ethers.getContractFactory('Timelock')
-    timelock = await factory.deploy(governorAlphaAddress, DELAY)
-    await timelock.deployed()
-    expect(timelock.address).to.be.eq(timelockAddress)
+    if (process.env['TIMELOCK']) {
+        const TimelockArtifact = await hre.artifacts.readArtifact('Timelock')
+        const TimelockABI = TimelockArtifact.abi
+        timelock = ethers.Contract(process.env['TIMELOCK'], TimelockABI, owner)
+        console.log('Timelock has been deployed before')
+    } else {
+        timelock = await factory.deploy(governorAlphaAddress, DELAY)
+        await timelock.deployed()
+        expect(timelock.address).to.be.eq(timelockAddress)
+        console.log('Timelock is now newly deployed')
+    }
+
     console.log('Timelock ', timelock.address)
     console.log(`Timelock constructor(${governorAlphaAddress}, ${DELAY})`)
 
     // deploy governorAlpha
     factory = await ethers.getContractFactory('GovernorAlpha')
-    governorAlpha = await factory.deploy(
-        timelock.address,
-        governanceToken.address
-    )
-    await governorAlpha.deployed()
-    expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
+    if (process.env['GOVERNOR_ALPHA']) {
+        const GovernorAlphaArtifact = await hre.artifacts.readArtifact(
+            'GovernorAlpha'
+        )
+        const GovernorAlphaABI = GovernorAlphaArtifact.abi
+        governorAlpha = ethers.Contract(
+            process.env['GOVERNOR_ALPHA'],
+            GovernorAlphaABI,
+            owner
+        )
+        console.log('GovernorAlpha has been deployed before')
+    } else {
+        governorAlpha = await factory.deploy(
+            timelock.address,
+            governanceToken.address
+        )
+        await governorAlpha.deployed()
+        expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
+        console.log('GovernorAlpha is now newly deployed')
+    }
     console.log('GovernorAlpha ', governorAlpha.address)
     console.log(
         `GovernorAlpha constructor(${timelock.address}, ${governanceToken.address})`
@@ -227,9 +268,9 @@ async function main() {
 
     console.log('sorted', user1.address, user2.address, user3.address)
 
-    let proxy = await (await ethers.getContractFactory('Proxy')).deploy(
-        masterWallet.address
-    )
+    let proxy = await (
+        await ethers.getContractFactory('Proxy')
+    ).deploy(masterWallet.address)
     console.log('proxy address', proxy.address)
     let walletAddress = await proxy.getAddress(salts[0])
     expect(walletAddress).to.exist
