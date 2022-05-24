@@ -20,6 +20,7 @@ chai.use(solidity)
 const { expect } = chai
 const hre = require('hardhat')
 
+import { resolve } from 'path'
 import { config as dotenvConfig } from 'dotenv'
 dotenvConfig({ path: resolve(__dirname, './.env') })
 
@@ -94,7 +95,7 @@ async function main() {
             'GovernanceToken'
         )
         const GovernanceTokenABI = GovernanceTokenArtifact.abi
-        governanceToken = ethers.Contract(
+        governanceToken = new ethers.Contract(
             process.env['GOVERNANCE_TOKEN'],
             GovernanceTokenABI,
             owner
@@ -108,14 +109,14 @@ async function main() {
         )
         await governanceToken.deployed()
         console.log('GovernanceToken is now newly deployed')
+        console.log(
+            `GovernanceToken ${governanceToken.address} constructor(${
+                owner.address
+            }, ${timelockAddress}, ${now + 60 * 60})`
+        )
     }
 
     console.log('GovernanceToken ', governanceToken.address)
-    console.log(
-        `GovernanceToken constructor(${owner.address}, ${timelockAddress}, ${
-            now + 60 * 60
-        })`
-    )
 
     transactionCount = await owner.getTransactionCount()
 
@@ -128,17 +129,23 @@ async function main() {
     if (process.env['TIMELOCK']) {
         const TimelockArtifact = await hre.artifacts.readArtifact('Timelock')
         const TimelockABI = TimelockArtifact.abi
-        timelock = ethers.Contract(process.env['TIMELOCK'], TimelockABI, owner)
+        timelock = new ethers.Contract(
+            process.env['TIMELOCK'],
+            TimelockABI,
+            owner
+        )
         console.log('Timelock has been deployed before')
     } else {
         timelock = await factory.deploy(governorAlphaAddress, DELAY)
         await timelock.deployed()
         expect(timelock.address).to.be.eq(timelockAddress)
         console.log('Timelock is now newly deployed')
+        console.log(
+            `Timelock ${timelock.address} constructor(${governorAlphaAddress}, ${DELAY})`
+        )
     }
 
     console.log('Timelock ', timelock.address)
-    console.log(`Timelock constructor(${governorAlphaAddress}, ${DELAY})`)
 
     // deploy governorAlpha
     factory = await ethers.getContractFactory('GovernorAlpha')
@@ -147,7 +154,7 @@ async function main() {
             'GovernorAlpha'
         )
         const GovernorAlphaABI = GovernorAlphaArtifact.abi
-        governorAlpha = ethers.Contract(
+        governorAlpha = new ethers.Contract(
             process.env['GOVERNOR_ALPHA'],
             GovernorAlphaABI,
             owner
@@ -161,11 +168,11 @@ async function main() {
         await governorAlpha.deployed()
         expect(governorAlpha.address).to.be.eq(governorAlphaAddress)
         console.log('GovernorAlpha is now newly deployed')
+        console.log(
+            `GovernorAlpha ${governorAlpha.address} constructor(${timelock.address}, ${governanceToken.address})`
+        )
     }
     console.log('GovernorAlpha ', governorAlpha.address)
-    console.log(
-        `GovernorAlpha constructor(${timelock.address}, ${governanceToken.address})`
-    )
 
     factory = await ethers.getContractFactory('ModuleRegistry')
     moduleRegistry = await factory.deploy()
@@ -268,9 +275,9 @@ async function main() {
 
     console.log('sorted', user1.address, user2.address, user3.address)
 
-    let proxy = await (
-        await ethers.getContractFactory('Proxy')
-    ).deploy(masterWallet.address)
+    let proxy = await (await ethers.getContractFactory('Proxy')).deploy(
+        masterWallet.address
+    )
     console.log('proxy address', proxy.address)
     let walletAddress = await proxy.getAddress(salts[0])
     expect(walletAddress).to.exist
