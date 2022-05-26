@@ -83,26 +83,37 @@ describe('Governance Token', () => {
             ethers.utils.parseEther('2')
         )
 
-        const currectVotes0 = await governanceToken.getCurrentVotes(
+        let currectVotes0 = await governanceToken.getCurrentVotes(
             other0.address
         )
         let currectVotes1 = await governanceToken.getCurrentVotes(
             other1.address
         )
+
+        // No delegation happens, so the current votes are 0
         expect(currectVotes0).to.be.eq(0)
         expect(currectVotes1).to.be.eq(0)
 
+        // Delegate: other0 -> other1
         await governanceToken.connect(other0).delegate(other1.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
 
+        // Delegate: other1 -> other1 (self delegation)
         await governanceToken.connect(other1).delegate(other1.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(
             ethers.utils.parseEther('1').add(ethers.utils.parseEther('2'))
         )
 
+        // Delegate: other1 -> owner, the current votes for other1 are from other0
         await governanceToken.connect(other1).delegate(wallet.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
     })
