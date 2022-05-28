@@ -83,28 +83,109 @@ describe('Governance Token', () => {
             ethers.utils.parseEther('2')
         )
 
-        const currectVotes0 = await governanceToken.getCurrentVotes(
+        let currectVotes0 = await governanceToken.getCurrentVotes(
             other0.address
         )
         let currectVotes1 = await governanceToken.getCurrentVotes(
             other1.address
         )
+
+        // No delegation happens, so the current votes are 0
         expect(currectVotes0).to.be.eq(0)
         expect(currectVotes1).to.be.eq(0)
 
+        const time_before_delegate_0_1 = await provider.getBlockNumber()
+
+        // ------------- Delegate: other0 -> other1 ------------------
         await governanceToken.connect(other0).delegate(other1.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
 
+        let priorVotes0 = await governanceToken.getPriorVotes(
+            other0.address,
+            time_before_delegate_0_1
+        )
+        expect(priorVotes0).to.be.eq(ethers.utils.parseEther('0'))
+        let priorVotes1 = await governanceToken.getPriorVotes(
+            other1.address,
+            time_before_delegate_0_1
+        )
+        expect(priorVotes1).to.be.eq(ethers.utils.parseEther('0'))
+        // ------------------------------------------------------------
+
+        const time_before_delegate_1_1 = await provider.getBlockNumber()
+
+        // ------- Delegate: other1 -> other1 (self delegation) -------
         await governanceToken.connect(other1).delegate(other1.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(
             ethers.utils.parseEther('1').add(ethers.utils.parseEther('2'))
         )
 
+        priorVotes0 = await governanceToken.getPriorVotes(
+            other0.address,
+            time_before_delegate_1_1
+        )
+        expect(priorVotes0).to.be.eq(ethers.utils.parseEther('0'))
+        priorVotes1 = await governanceToken.getPriorVotes(
+            other1.address,
+            time_before_delegate_1_1
+        )
+        expect(priorVotes1).to.be.eq(ethers.utils.parseEther('1'))
+        // ------------------------------------------------------------
+
+        const time_before_delegate_1_owner = await provider.getBlockNumber()
+
+        // Delegate: other1 -> owner, the current votes for other1 are from other0
         await governanceToken.connect(other1).delegate(wallet.address)
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
         currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
         expect(currectVotes1).to.be.eq(ethers.utils.parseEther('1'))
+
+        priorVotes0 = await governanceToken.getPriorVotes(
+            other0.address,
+            time_before_delegate_1_owner
+        )
+        expect(priorVotes0).to.be.eq(ethers.utils.parseEther('0'))
+        priorVotes1 = await governanceToken.getPriorVotes(
+            other1.address,
+            time_before_delegate_1_owner
+        )
+        expect(priorVotes1).to.be.eq(
+            ethers.utils.parseEther('1').add(ethers.utils.parseEther('2'))
+        )
+        // ------------------------------------------------------------
+
+        const time_before_transfer = await provider.getBlockNumber()
+
+        // If other0 receive more, the current new votes still delegated to other1
+        await governanceToken.transfer(
+            other0.address,
+            ethers.utils.parseEther('3')
+        )
+        currectVotes0 = await governanceToken.getCurrentVotes(other0.address)
+        expect(currectVotes0).to.be.eq(ethers.utils.parseEther('0'))
+        currectVotes1 = await governanceToken.getCurrentVotes(other1.address)
+        expect(currectVotes1).to.be.eq(
+            ethers.utils.parseEther('1').add(ethers.utils.parseEther('3'))
+        )
+
+        priorVotes0 = await governanceToken.getPriorVotes(
+            other0.address,
+            time_before_transfer
+        )
+        expect(priorVotes0).to.be.eq(ethers.utils.parseEther('0'))
+        priorVotes1 = await governanceToken.getPriorVotes(
+            other1.address,
+            time_before_transfer
+        )
+        expect(priorVotes1).to.be.eq(ethers.utils.parseEther('1'))
+        // ------------------------------------------------------------
     })
 
     it('mints', async () => {
