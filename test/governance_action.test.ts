@@ -796,9 +796,11 @@ describe('Governance Action', () => {
         const eta = now + DELAY + 60 // give a minute margin
         await helpers.mineBlock(provider, eta)
         console.log('execute the proposal')
-        await governorAlpha.execute(proposalId)
-
         const impl = await securityModuleProxy.getImplementation()
+        // Before execute, the implementation address should not be equal
+        expect(impl).to.be.not.eq(securityModule.address)
+        await governorAlpha.execute(proposalId)
+        // After execute, the implementation address should not be equal
         expect(impl).to.be.eq(securityModule.address)
     }).timeout(500000)
 })
