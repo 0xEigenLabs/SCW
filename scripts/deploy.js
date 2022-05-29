@@ -393,7 +393,7 @@ async function main() {
         SecurityModule: securityModuleProxy.address,
         TransactionModule: transactionModuleProxy.address,
         TestToken: testToken.address,
-        MasterWallet: masterWallet.address,
+        ProxyWallet: walletAddress,
     })
 }
 
