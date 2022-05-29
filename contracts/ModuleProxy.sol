@@ -17,12 +17,12 @@ contract ModuleProxy is IModuleProxy {
 
     constructor(address _admin) {
         admin = _admin;
-        emit NewAdmin(admin);
     }
 
     function setAdmin(address _admin) public {
         require(admin == msg.sender, "MP: only admin can setAdmin");
         admin = _admin;
+        emit NewAdmin(admin);
     }
 
     function getImplementation() external view returns (address) {
