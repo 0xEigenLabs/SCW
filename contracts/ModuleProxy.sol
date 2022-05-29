@@ -3,16 +3,21 @@ pragma solidity ^0.8.0;
 import "./IModuleProxy.sol";
 
 contract ModuleProxy is IModuleProxy {
+    event NewImplementation(address implementaion);
+    event NewAdmin(address indexed newAdmin);
+
     address public implementation;
     address public admin;
 
     function setImplementation(address _imp) external override {
         require(admin == msg.sender, "MP: only admin can setImplementation");
         implementation = _imp;
+        emit NewImplementation(implementation);
     }
 
     constructor(address _admin) {
         admin = _admin;
+        emit NewAdmin(admin);
     }
 
     function setAdmin(address _admin) public {
