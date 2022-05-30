@@ -385,6 +385,16 @@ async function main() {
     await res.wait()
     newAdmin = await transactionModuleProxy.admin()
     expect(newAdmin).to.be.eq(timelock.address)
+
+    console.log({
+        GovernanceToken: governanceToken.address,
+        Timelock: timelock.address,
+        GovernorAlpha: governorAlpha.address,
+        SecurityModule: securityModuleProxy.address,
+        TransactionModule: transactionModuleProxy.address,
+        TestToken: testToken.address,
+        Proxy: proxy.address,
+    })
 }
 
 // We recommend this pattern to be able to use async/await everywhere
