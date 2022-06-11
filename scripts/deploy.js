@@ -30,6 +30,7 @@ import { SecurityModule__factory } from '../typechain/factories/SecurityModule__
 import { TransactionModule__factory } from '../typechain/factories/TransactionModule__factory'
 import { Wallet__factory } from '../typechain/factories/Wallet__factory'
 import { BaseModule__factory } from '../typechain/factories/BaseModule__factory'
+import { Create2Factoory__factory } from '../typechain/factories/Create2Factoory__factory'
 
 import SecurityModule from '../artifacts/contracts/SecurityModule.sol/SecurityModule.json'
 import TransactionModule from '../artifacts/contracts/TransactionModule.sol/TransactionModule.json'
@@ -37,6 +38,7 @@ import TransactionModule from '../artifacts/contracts/TransactionModule.sol/Tran
 const helpers = require('../test/helpers')
 const provider = waffle.provider
 
+let create2Factory
 let moduleRegistry
 let testToken
 let governanceToken
@@ -79,6 +81,8 @@ async function main() {
     user1 = Wallet.createRandom().connect(provider)
     user2 = Wallet.createRandom().connect(provider)
     user3 = Wallet.createRandom().connect(provider)
+
+    const SALT = process.env['SALT'] || 42
 
     // Firstly, deploy governance contracts
     const { timestamp: now } = await provider.getBlock('latest')
@@ -174,9 +178,59 @@ async function main() {
     }
     console.log('GovernorAlpha ', governorAlpha.address)
 
-    factory = await ethers.getContractFactory('ModuleRegistry')
-    moduleRegistry = await factory.deploy()
-    await moduleRegistry.deployed()
+    // Delopy Create2Factory
+    if (process.env['CREATE2_FACTORY']) {
+        const Create2FactoryArtifact = await hre.artifacts.readArtifact(
+            'Create2Factory'
+        )
+        const Create2FactoryABI = Create2FactoryArtifact.abi
+        create2Factory = new ethers.Contract(
+            process.env['CREATE2_FACTORY'],
+            Create2FactoryABI,
+            owner
+        )
+        console.log('Create2Factory has been deployed before')
+    } else {
+        create2Factory = await factory.deploy()
+        await create2Factory.deployed()
+        console.log('Create2Factory is now newly deployed')
+        console.log(`Create2Factory ${create2Factory.address} constructor()`)
+    }
+
+    if (process.env['MODULE_REGISTRY']) {
+        const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
+            'ModuleRegistry'
+        )
+        const ModuleRegistryABI = ModuleRegistryArtifact.abi
+        moduleRegistry = new ethers.Contract(
+            process.env['MODULE_REGISTRY'],
+            ModuleRegistryABI,
+            owner
+        )
+        console.log('ModuleRegistry has been deployed before')
+    } else {
+        const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
+            'ModuleRegistry'
+        )
+        const iface = new ethers.utils.Interface(ModuleRegistryArtifact.abi)
+        const bytecode = iface.encodeDeploy()
+        const moduleRegistryAddress = await create2Factory.indCreate2Address(
+            SALT,
+            bytecode
+        )
+
+        const tx = await create2Factory.deploy(SALT, bytecode)
+        await tx.wait()
+
+        moduleRegistry = new ethers.Contract(
+            moduleRegistryAddress,
+            ModuleRegistryArtifact.abi,
+            owner
+        )
+
+        console.log('ModuleRegistry is now newly deployed')
+        console.log(`ModuleRegistry ${moduleRegistry.address} constructor()`)
+    }
 
     factory = await ethers.getContractFactory('SecurityModule')
     let securityModule = await factory.deploy()
