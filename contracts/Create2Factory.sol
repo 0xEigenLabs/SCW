@@ -10,6 +10,9 @@ pragma solidity ^0.8.0;
  * with a given block of initialization code.
  */
 contract Create2Factory {
+    
+    /// @notice An event thats emitted when a contract is deployed
+    event Deployed(address indexed deployedAddress);
     /**
      * @dev Create a contract using CREATE2 by submitting a given salt or nonce
      * along with the initialization code for the contract. Note that the first 20
@@ -21,7 +24,7 @@ contract Create2Factory {
      * @return deploymentAddress Address of the contract that will be created, or the null address
      * if a contract already exists at that address.
      */
-    function callCreate2(bytes32 salt, bytes calldata initializationCode)
+    function deploy(bytes32 salt, bytes calldata initializationCode)
         external
         payable
         containsCaller(salt)
@@ -49,6 +52,8 @@ contract Create2Factory {
             deploymentAddress != address(0),
             "CF: Failed to deploy contract"
         );
+
+        emit Deployed(deploymentAddress);
     }
 
     /**
