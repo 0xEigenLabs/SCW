@@ -178,7 +178,7 @@ async function main() {
     }
     console.log('GovernorAlpha ', governorAlpha.address)
 
-    // Delopy Create2Factory
+    // delopy Create2Factory
     if (process.env['CREATE2_FACTORY']) {
         const Create2FactoryArtifact = await hre.artifacts.readArtifact(
             'Create2Factory'
@@ -196,7 +196,9 @@ async function main() {
         console.log('Create2Factory is now newly deployed')
         console.log(`Create2Factory ${create2Factory.address} constructor()`)
     }
+    console.log('Create2Factory ', create2Factory.address)
 
+    // delopy ModuleRegistry
     if (process.env['MODULE_REGISTRY']) {
         const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
             'ModuleRegistry'
@@ -231,7 +233,43 @@ async function main() {
         console.log('ModuleRegistry is now newly deployed')
         console.log(`ModuleRegistry ${moduleRegistry.address} constructor()`)
     }
+    console.log('ModuleRegistry ', moduleRegistry.address)
 
+    // delopy SecurityModule
+    if (process.env['SECURITY_MODULE']) {
+        const SecurityModuleArtifact = await hre.artifacts.readArtifact(
+            'SecurityModule'
+        )
+        const SecurityModuleABI = SecurityModuleArtifact.abi
+        securityModule = new ethers.Contract(
+            process.env['MODULE_REGISTRY'],
+            SecurityModuleABI,
+            owner
+        )
+        console.log('SecurityModule has been deployed before')
+    } else {
+        const SecurityModuleArtifact = await hre.artifacts.readArtifact(
+            'SecurityModule'
+        )
+        const iface = new ethers.utils.Interface(SecurityModuleArtifact.abi)
+        const bytecode = iface.encodeDeploy()
+        const securityModuleAddress = await create2Factory.indCreate2Address(
+            SALT,
+            bytecode
+        )
+
+        const tx = await create2Factory.deploy(SALT, bytecode)
+        await tx.wait()
+
+        moduleSecurity = new ethers.Contract(
+            securityModuleAddress,
+            SecurityModuleArtifact.abi,
+            owner
+        )
+
+        console.log('SecurityModule is now newly deployed')
+        console.log(`SecurityModule ${moduleSecurity.address} constructor()`)
+    }
     factory = await ethers.getContractFactory('SecurityModule')
     let securityModule = await factory.deploy()
     await securityModule.deployed()
