@@ -10,9 +10,9 @@ pragma solidity ^0.8.0;
  * with a given block of initialization code.
  */
 contract Create2Factory {
-    
     /// @notice An event thats emitted when a contract is deployed
     event Deployed(address indexed deployedAddress);
+
     /**
      * @dev Create a contract using CREATE2 by submitting a given salt or nonce
      * along with the initialization code for the contract. Note that the first 20
