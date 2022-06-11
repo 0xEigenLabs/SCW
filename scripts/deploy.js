@@ -242,11 +242,11 @@ async function main() {
         )
         const SecurityModuleABI = SecurityModuleArtifact.abi
         securityModule = new ethers.Contract(
-            process.env['MODULE_REGISTRY'],
+            process.env['SECURITY_MODULE'],
             SecurityModuleABI,
             owner
         )
-        console.log('SecurityModule has been deployed before')
+        console.log('SecurityModule (implementation) has been deployed before')
     } else {
         const SecurityModuleArtifact = await hre.artifacts.readArtifact(
             'SecurityModule'
@@ -267,7 +267,7 @@ async function main() {
             owner
         )
 
-        console.log('SecurityModule is now newly deployed')
+        console.log('SecurityModule (implementation) is now newly deployed')
         console.log(`SecurityModule ${moduleSecurity.address} constructor()`)
     }
     factory = await ethers.getContractFactory('SecurityModule')
