@@ -11,7 +11,7 @@ pragma solidity ^0.8.0;
  */
 contract Create2Factory {
     /// @notice An event thats emitted when a contract is deployed
-    event Deployed(address indexed deployedAddress);
+    event Deployed(address indexed deployedAddress, bytes32 salt);
 
     /**
      * @dev Create a contract using CREATE2 by submitting a given salt or nonce
@@ -53,7 +53,7 @@ contract Create2Factory {
             "CF: Failed to deploy contract"
         );
 
-        emit Deployed(deploymentAddress);
+        emit Deployed(deploymentAddress, salt);
     }
 
     /**
