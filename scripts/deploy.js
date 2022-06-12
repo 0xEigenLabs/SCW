@@ -82,7 +82,8 @@ async function main() {
     user2 = Wallet.createRandom().connect(provider)
     user3 = Wallet.createRandom().connect(provider)
 
-    const SALT = process.env['SALT'] || 42
+    const SALT1 = ethers.utils.formatBytes32String(process.env['SALT1'] || '42')
+    const SALT2 = ethers.utils.formatBytes32String(process.env['SALT2'] || '43')
 
     // Firstly, deploy governance contracts
     const { timestamp: now } = await provider.getBlock('latest')
@@ -179,6 +180,7 @@ async function main() {
     console.log('GovernorAlpha ', governorAlpha.address)
 
     // delopy Create2Factory
+    factory = await ethers.getContractFactory('Create2Factory')
     if (process.env['CREATE2_FACTORY']) {
         const Create2FactoryArtifact = await hre.artifacts.readArtifact(
             'Create2Factory'
@@ -199,6 +201,7 @@ async function main() {
     console.log('Create2Factory ', create2Factory.address)
 
     // delopy ModuleRegistry
+    factory = await ethers.getContractFactory('ModuleRegistry')
     if (process.env['MODULE_REGISTRY']) {
         const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
             'ModuleRegistry'
@@ -215,13 +218,14 @@ async function main() {
             'ModuleRegistry'
         )
         const iface = new ethers.utils.Interface(ModuleRegistryArtifact.abi)
-        const bytecode = iface.encodeDeploy()
-        const moduleRegistryAddress = await create2Factory.indCreate2Address(
-            SALT,
-            bytecode
+        const bytecode =
+            ModuleRegistryArtifact.bytecode + iface.encodeDeploy([]).slice(2)
+        const moduleRegistryAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT, bytecode)
+        const tx = await create2Factory.deploy(SALT1, bytecode)
         await tx.wait()
 
         moduleRegistry = new ethers.Contract(
@@ -236,6 +240,7 @@ async function main() {
     console.log('ModuleRegistry ', moduleRegistry.address)
 
     // delopy SecurityModule
+    factory = await ethers.getContractFactory('SecurityModule')
     if (process.env['SECURITY_MODULE']) {
         const SecurityModuleArtifact = await hre.artifacts.readArtifact(
             'SecurityModule'
@@ -253,12 +258,12 @@ async function main() {
         )
         const iface = new ethers.utils.Interface(SecurityModuleArtifact.abi)
         const bytecode = iface.encodeDeploy()
-        const securityModuleAddress = await create2Factory.indCreate2Address(
-            SALT,
+        const securityModuleAddress = await create2Factory.findCreate2Address(
+            SALT1,
             bytecode
         )
 
-        const tx = await create2Factory.deploy(SALT, bytecode)
+        const tx = await create2Factory.deploy(SALT1, bytecode)
         await tx.wait()
 
         moduleSecurity = new ethers.Contract(
@@ -272,6 +277,7 @@ async function main() {
     }
 
     // delopy TransactionModule
+    factory = await ethers.getContractFactory('TransactionModule')
     if (process.env['TRANSACATION_MODULE']) {
         const TransactionModuleArtifact = await hre.artifacts.readArtifact(
             'TransactionModule'
@@ -291,12 +297,12 @@ async function main() {
         )
         const iface = new ethers.utils.Interface(TransactionModuleArtifact.abi)
         const bytecode = iface.encodeDeploy()
-        const TransactionModuleAddress = await create2Factory.indCreate2Address(
-            SALT,
+        const TransactionModuleAddress = await create2Factory.findCreate2Address(
+            SALT1,
             bytecode
         )
 
-        const tx = await create2Factory.deploy(SALT, bytecode)
+        const tx = await create2Factory.deploy(SALT1, bytecode)
         await tx.wait()
 
         moduleTransaction = new ethers.Contract(
@@ -312,6 +318,7 @@ async function main() {
     }
 
     // delopy ModuleProxy (TransactionModule)
+    factory = await ethers.getContractFactory('ModuleProxy')
     if (process.env['MODULE_PROXY_TRANSACTION_MODULE']) {
         const ModuleProxyArtifact = await hre.artifacts.readArtifact(
             'ModuleProxy'
@@ -329,12 +336,12 @@ async function main() {
         )
         const iface = new ethers.utils.Interface(ModuleProxyArtifact.abi)
         const bytecode = iface.encodeDeploy()
-        const ModuleProxyAddress = await create2Factory.indCreate2Address(
-            SALT,
+        const ModuleProxyAddress = await create2Factory.findCreate2Address(
+            SALT1,
             bytecode
         )
 
-        const tx = await create2Factory.deploy(SALT, bytecode)
+        const tx = await create2Factory.deploy(SALT1, bytecode)
         await tx.wait()
 
         transactionModuleProxy = new ethers.Contract(
@@ -363,6 +370,7 @@ async function main() {
     }
 
     // delopy ModuleProxy (SecurityModule)
+    factory = await ethers.getContractFactory('ModuleProxy')
     if (process.env['MODULE_PROXY_SECURITY_MODULE']) {
         const ModuleProxyArtifact = await hre.artifacts.readArtifact(
             'ModuleProxy'
@@ -380,12 +388,12 @@ async function main() {
         )
         const iface = new ethers.utils.Interface(ModuleProxyArtifact.abi)
         const bytecode = iface.encodeDeploy()
-        const ModuleProxyAddress = await create2Factory.indCreate2Address(
-            SALT + 1, // The second ModuleProxy, should use a differentce SALT
+        const ModuleProxyAddress = await create2Factory.findCreate2Address(
+            SALT2, // The second ModuleProxy, should use a differentce SALT
             bytecode
         )
 
-        const tx = await create2Factory.deploy(SALT + 1, bytecode) // The second ModuleProxy, should use a differentce SALT
+        const tx = await create2Factory.deploy(SALT2, bytecode) // The second ModuleProxy, should use a differentce SALT
         await tx.wait()
 
         securityModuleProxy = new ethers.Contract(
@@ -470,9 +478,9 @@ async function main() {
 
     console.log('sorted', user1.address, user2.address, user3.address)
 
-    let proxy = await (
-        await ethers.getContractFactory('Proxy')
-    ).deploy(masterWallet.address)
+    let proxy = await (await ethers.getContractFactory('Proxy')).deploy(
+        masterWallet.address
+    )
     console.log('proxy address', proxy.address)
     let walletAddress = await proxy.getAddress(salts[0])
     expect(walletAddress).to.exist
