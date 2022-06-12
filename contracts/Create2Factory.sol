@@ -114,10 +114,10 @@ contract Create2Factory {
     modifier containsCaller(bytes32 salt) {
         // prevent contract submissions from being stolen from tx.pool by requiring
         // that the first 20 bytes of the submitted salt match msg.sender.
-        require(
-            address(bytes20(salt)) == msg.sender,
-            "CF: Invalid salt"
-        );
+        // require(
+        //     address(bytes20(salt)) == msg.sender,
+        //     "CF: Invalid salt"
+        // );
         _;
     }
 }
