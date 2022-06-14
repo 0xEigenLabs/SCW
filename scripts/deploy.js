@@ -84,8 +84,8 @@ async function main() {
     user2 = Wallet.createRandom().connect(provider)
     user3 = Wallet.createRandom().connect(provider)
 
-    const SALT1 = ethers.utils.formatBytes32String(process.env['SALT1'] || '0')
-    const SALT2 = ethers.utils.formatBytes32String(process.env['SALT2'] || '1')
+    const SALT1 = ethers.utils.formatBytes32String(process.env['SALT1'] || '42')
+    const SALT2 = ethers.utils.formatBytes32String(process.env['SALT2'] || '43')
 
     // Firstly, deploy governance contracts
     const { timestamp: now } = await provider.getBlock('latest')
@@ -227,7 +227,8 @@ async function main() {
             ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT1, bytecode)
+        // ModuleRegistry is Ownable, should transfer the ownership back to the owner from Create2Factory
+        const tx = await create2Factory.deploy(owner.address, SALT1, bytecode)
         await tx.wait()
 
         moduleRegistry = new ethers.Contract(
@@ -266,7 +267,11 @@ async function main() {
             ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT1, bytecode)
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
         await tx.wait()
 
         securityModule = new ethers.Contract(
@@ -307,7 +312,11 @@ async function main() {
             ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT1, bytecode)
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
         await tx.wait()
 
         transactionModule = new ethers.Contract(
@@ -349,7 +358,11 @@ async function main() {
             ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT1, bytecode)
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
         await tx.wait()
 
         transactionModuleProxy = new ethers.Contract(
@@ -404,7 +417,11 @@ async function main() {
             ethers.utils.keccak256(bytecode)
         )
 
-        const tx = await create2Factory.deploy(SALT2, bytecode) // The second ModuleProxy, should use a differentce SALT
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT2,
+            bytecode
+        ) // The second ModuleProxy, should use a differentce SALT
         await tx.wait()
 
         securityModuleProxy = new ethers.Contract(
@@ -489,6 +506,7 @@ async function main() {
 
     console.log('sorted', user1.address, user2.address, user3.address)
 
+    // Proxy is Ownable, should transfer the ownership back to the owner from Create2Factory
     let proxy = await (await ethers.getContractFactory('Proxy')).deploy(
         masterWallet.address
     )
