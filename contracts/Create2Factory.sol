@@ -24,7 +24,11 @@ contract Create2Factory {
      * @return deploymentAddress Address of the contract that will be created, or the null address
      * if a contract already exists at that address.
      */
-    function deploy(bytes32 salt, bytes calldata initializationCode)
+    function deploy(
+        address owner,
+        bytes32 salt,
+        bytes calldata initializationCode
+    )
         external
         payable
         containsCaller(salt)
@@ -52,6 +56,10 @@ contract Create2Factory {
             deploymentAddress != address(0),
             "CF: Failed to deploy contract"
         );
+
+        if (owner != address(0)) {
+            OwnableInterface(deploymentAddress).transferOwnership(owner);
+        }
 
         emit Deployed(deploymentAddress, salt);
     }
@@ -120,4 +128,8 @@ contract Create2Factory {
         // );
         _;
     }
+}
+
+interface OwnableInterface {
+    function transferOwnership(address newOwner) external;
 }
