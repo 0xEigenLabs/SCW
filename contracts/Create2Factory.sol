@@ -36,6 +36,14 @@ contract Create2Factory {
     {
         // move the initialization code from calldata to memory
         bytes memory initCode = initializationCode;
+        bytes32 initCodeHash = keccak256(initCode);
+
+        address predictedAddress = findCreate2Address(salt, initCodeHash);
+
+        require(
+            predictedAddress != address(0),
+            "CF: The contract should not be existed"
+        );
 
         // using inline assembly: load data and length of data, then call CREATE2.
         assembly {
@@ -55,6 +63,11 @@ contract Create2Factory {
         require(
             deploymentAddress != address(0),
             "CF: Failed to deploy contract"
+        );
+
+        require(
+            predictedAddress == deploymentAddress,
+            "CF: The deployment address is not expected"
         );
 
         if (owner != address(0)) {
@@ -78,7 +91,7 @@ contract Create2Factory {
      * if a contract already exists at that address.
      */
     function findCreate2Address(bytes32 salt, bytes32 initCodeHash)
-        external
+        public
         view
         returns (address deploymentAddress)
     {
