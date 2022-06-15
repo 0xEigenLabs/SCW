@@ -30,6 +30,7 @@ import { SecurityModule__factory } from '../typechain/factories/SecurityModule__
 import { TransactionModule__factory } from '../typechain/factories/TransactionModule__factory'
 import { Wallet__factory } from '../typechain/factories/Wallet__factory'
 import { BaseModule__factory } from '../typechain/factories/BaseModule__factory'
+import { Create2Factoory__factory } from '../typechain/factories/Create2Factoory__factory'
 
 import SecurityModule from '../artifacts/contracts/SecurityModule.sol/SecurityModule.json'
 import TransactionModule from '../artifacts/contracts/TransactionModule.sol/TransactionModule.json'
@@ -37,6 +38,7 @@ import TransactionModule from '../artifacts/contracts/TransactionModule.sol/Tran
 const helpers = require('../test/helpers')
 const provider = waffle.provider
 
+let create2Factory
 let moduleRegistry
 let testToken
 let governanceToken
@@ -44,10 +46,13 @@ let timelock
 let governorAlpha
 let proxiedSecurityModule
 let securityModuleProxy
-let proxiedTransactionModule
+let securityModule
+let transactionModule
 let transactionModuleProxy
+let proxiedTransactionModule
 let masterWallet
 let wallet1
+let proxy
 let owner
 let user1
 let user2
@@ -79,6 +84,9 @@ async function main() {
     user1 = Wallet.createRandom().connect(provider)
     user2 = Wallet.createRandom().connect(provider)
     user3 = Wallet.createRandom().connect(provider)
+
+    const SALT1 = ethers.utils.formatBytes32String(process.env['SALT1'] || '42')
+    const SALT2 = ethers.utils.formatBytes32String(process.env['SALT2'] || '43')
 
     // Firstly, deploy governance contracts
     const { timestamp: now } = await provider.getBlock('latest')
@@ -174,56 +182,312 @@ async function main() {
     }
     console.log('GovernorAlpha ', governorAlpha.address)
 
+    // delopy Create2Factory
+    factory = await ethers.getContractFactory('Create2Factory')
+    if (process.env['CREATE2_FACTORY']) {
+        const Create2FactoryArtifact = await hre.artifacts.readArtifact(
+            'Create2Factory'
+        )
+        const Create2FactoryABI = Create2FactoryArtifact.abi
+        create2Factory = new ethers.Contract(
+            process.env['CREATE2_FACTORY'],
+            Create2FactoryABI,
+            owner
+        )
+        console.log('Create2Factory has been deployed before')
+    } else {
+        create2Factory = await factory.deploy()
+        await create2Factory.deployed()
+        console.log('Create2Factory is now newly deployed')
+        console.log(`Create2Factory ${create2Factory.address} constructor()`)
+    }
+    console.log('Create2Factory ', create2Factory.address)
+
+    // delopy ModuleRegistry
     factory = await ethers.getContractFactory('ModuleRegistry')
-    moduleRegistry = await factory.deploy()
-    await moduleRegistry.deployed()
+    if (process.env['MODULE_REGISTRY']) {
+        const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
+            'ModuleRegistry'
+        )
+        const ModuleRegistryABI = ModuleRegistryArtifact.abi
+        moduleRegistry = new ethers.Contract(
+            process.env['MODULE_REGISTRY'],
+            ModuleRegistryABI,
+            owner
+        )
+        console.log('ModuleRegistry has been deployed before')
+    } else {
+        const ModuleRegistryArtifact = await hre.artifacts.readArtifact(
+            'ModuleRegistry'
+        )
+        const iface = new ethers.utils.Interface(ModuleRegistryArtifact.abi)
+        const bytecode =
+            ModuleRegistryArtifact.bytecode + iface.encodeDeploy([]).slice(2)
+        const moduleRegistryAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
 
+        // ModuleRegistry is Ownable, should transfer the ownership back to the owner from Create2Factory
+        const tx = await create2Factory.deploy(owner.address, SALT1, bytecode)
+        await tx.wait()
+
+        moduleRegistry = new ethers.Contract(
+            moduleRegistryAddress,
+            ModuleRegistryArtifact.abi,
+            owner
+        )
+
+        console.log('ModuleRegistry is now newly deployed')
+        console.log(`ModuleRegistry ${moduleRegistry.address} constructor()`)
+    }
+    console.log('ModuleRegistry ', moduleRegistry.address)
+
+    // delopy SecurityModule
     factory = await ethers.getContractFactory('SecurityModule')
-    let securityModule = await factory.deploy()
-    await securityModule.deployed()
+    if (process.env['SECURITY_MODULE']) {
+        const SecurityModuleArtifact = await hre.artifacts.readArtifact(
+            'SecurityModule'
+        )
+        const SecurityModuleABI = SecurityModuleArtifact.abi
+        securityModule = new ethers.Contract(
+            process.env['SECURITY_MODULE'],
+            SecurityModuleABI,
+            owner
+        )
+        console.log('SecurityModule (implementation) has been deployed before')
+    } else {
+        const SecurityModuleArtifact = await hre.artifacts.readArtifact(
+            'SecurityModule'
+        )
+        const iface = new ethers.utils.Interface(SecurityModuleArtifact.abi)
+        const bytecode =
+            SecurityModuleArtifact.bytecode + iface.encodeDeploy([]).slice(2)
+        const securityModuleAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
 
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
+        await tx.wait()
+
+        securityModule = new ethers.Contract(
+            securityModuleAddress,
+            SecurityModuleArtifact.abi,
+            owner
+        )
+
+        console.log('SecurityModule (implementation) is now newly deployed')
+        console.log(`SecurityModule ${securityModule.address} constructor()`)
+    }
+
+    // delopy TransactionModule
     factory = await ethers.getContractFactory('TransactionModule')
-    let transactionModule = await factory.deploy()
-    await transactionModule.deployed()
+    if (process.env['TRANSACATION_MODULE']) {
+        const TransactionModuleArtifact = await hre.artifacts.readArtifact(
+            'TransactionModule'
+        )
+        const TransactionModuleABI = TransactionModuleArtifact.abi
+        transactionModule = new ethers.Contract(
+            process.env['TRANSACATION_MODULE'],
+            TransactionModuleABI,
+            owner
+        )
+        console.log(
+            'TransactionModule (implementation) has been deployed before'
+        )
+    } else {
+        const TransactionModuleArtifact = await hre.artifacts.readArtifact(
+            'TransactionModule'
+        )
 
+        const iface = new ethers.utils.Interface(TransactionModuleArtifact.abi)
+        const bytecode =
+            TransactionModuleArtifact.bytecode + iface.encodeDeploy([]).slice(2)
+        const transactionModuleAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
+
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
+        await tx.wait()
+
+        transactionModule = new ethers.Contract(
+            transactionModuleAddress,
+            TransactionModuleArtifact.abi,
+            owner
+        )
+
+        console.log('TransactionModule (implementation) is now newly deployed')
+        console.log(
+            `TransactionModule ${transactionModule.address} constructor()`
+        )
+    }
+
+    // delopy ModuleProxy (TransactionModule)
     factory = await ethers.getContractFactory('ModuleProxy')
-    securityModuleProxy = await factory.deploy(owner.address)
-    await securityModuleProxy.deployed()
+    if (process.env['MODULE_PROXY_TRANSACTION_MODULE']) {
+        const ModuleProxyArtifact = await hre.artifacts.readArtifact(
+            'ModuleProxy'
+        )
+        const ModuleProxyABI = ModuleProxyArtifact.abi
+        transactionModuleProxy = new ethers.Contract(
+            process.env['MODULE_PROXY_TRANSACTION_MODULE'],
+            ModuleProxyABI,
+            owner
+        )
+        console.log('ModuleProxy (TransactionModule) has been deployed before')
+    } else {
+        const ModuleProxyArtifact = await hre.artifacts.readArtifact(
+            'ModuleProxy'
+        )
 
-    console.log(
-        'Set the admin of the securityModuleProxy (now the owner): ',
-        owner.address
-    )
-    await securityModuleProxy
-        .connect(owner)
-        .setImplementation(securityModule.address)
+        const iface = new ethers.utils.Interface(ModuleProxyArtifact.abi)
+        const bytecode =
+            ModuleProxyArtifact.bytecode +
+            iface.encodeDeploy([owner.address]).slice(2)
+        const moduleProxyAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
 
-    console.log(
-        'The proxy of SecurityModule is set with ',
-        securityModule.address
-    )
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
+        await tx.wait()
 
+        transactionModuleProxy = new ethers.Contract(
+            moduleProxyAddress,
+            ModuleProxyArtifact.abi,
+            owner
+        )
+
+        console.log('ModuleProxy (TransactionModule) is now newly deployed')
+        console.log(
+            `ModuleProxy (TransactionModule) ${transactionModuleProxy.address} constructor()`
+        )
+
+        console.log(
+            'Set the admin of the transactionModuleProxy (now the owner): ',
+            owner.address
+        )
+        await transactionModuleProxy
+            .connect(owner)
+            .setImplementation(transactionModule.address)
+
+        console.log(
+            'The proxy of TransactionModule is set with ',
+            transactionModule.address
+        )
+    }
+
+    // delopy ModuleProxy (SecurityModule)
     factory = await ethers.getContractFactory('ModuleProxy')
-    transactionModuleProxy = await factory.deploy(owner.address)
-    await transactionModuleProxy.deployed()
+    if (process.env['MODULE_PROXY_SECURITY_MODULE']) {
+        const ModuleProxyArtifact = await hre.artifacts.readArtifact(
+            'ModuleProxy'
+        )
+        const ModuleProxyABI = ModuleProxyArtifact.abi
+        securityModuleProxy = new ethers.Contract(
+            process.env['MODULE_PROXY_SECURITY_MODULE'],
+            ModuleProxyABI,
+            owner
+        )
+        console.log('ModuleProxy (SecurityModule) has been deployed before')
+    } else {
+        const ModuleProxyArtifact = await hre.artifacts.readArtifact(
+            'ModuleProxy'
+        )
 
-    console.log(
-        'Set the admin of the transactionModuleProxy (now the owner): ',
-        owner.address
-    )
-    await transactionModuleProxy
-        .connect(owner)
-        .setImplementation(transactionModule.address)
+        const iface = new ethers.utils.Interface(ModuleProxyArtifact.abi)
+        const bytecode =
+            ModuleProxyArtifact.bytecode +
+            iface.encodeDeploy([owner.address]).slice(2)
+        const moduleProxyAddress = await create2Factory.findCreate2Address(
+            SALT2,
+            ethers.utils.keccak256(bytecode)
+        )
 
-    console.log(
-        'The proxy of TransactionModule is set with ',
-        transactionModule.address
-    )
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT2,
+            bytecode
+        ) // The second ModuleProxy, should use a differentce SALT
+        await tx.wait()
 
+        securityModuleProxy = new ethers.Contract(
+            moduleProxyAddress,
+            ModuleProxyArtifact.abi,
+            owner
+        )
+
+        console.log('ModuleProxy (securityModule) is now newly deployed')
+        console.log(
+            `ModuleProxy (securityModule) ${securityModuleProxy.address} constructor()`
+        )
+
+        console.log(
+            'Set the admin of the securityModuleProxy (now the owner): ',
+            owner.address
+        )
+        await securityModuleProxy
+            .connect(owner)
+            .setImplementation(securityModule.address)
+
+        console.log(
+            'The proxy of SecurityModule is set with ',
+            securityModule.address
+        )
+    }
+
+    // delopy TestToken
     factory = await ethers.getContractFactory('TestToken')
-    testToken = await factory.deploy(100000)
-    await testToken.deployed()
-    console.log('testToken address', testToken.address)
+    if (process.env['TEST_TOKEN']) {
+        const TestTokenArtifact = await hre.artifacts.readArtifact('TestToken')
+        const TestTokenABI = TestTokenArtifact.abi
+        testToken = new ethers.Contract(
+            process.env['TEST_TOKEN'],
+            TestTokenABI,
+            owner
+        )
+        console.log('TestToken has been deployed before')
+    } else {
+        const TestTokenArtifact = await hre.artifacts.readArtifact('TestToken')
+
+        const iface = new ethers.utils.Interface(TestTokenArtifact.abi)
+        const bytecode =
+            TestTokenArtifact.bytecode + iface.encodeDeploy([100000]).slice(2)
+        const testTokenAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
+
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
+        await tx.wait()
+
+        testToken = new ethers.Contract(
+            testTokenAddress,
+            TestTokenArtifact.abi,
+            owner
+        )
+
+        console.log('TestToken is now newly deployed')
+        console.log(`TestToken ${testToken.address} constructor(100000)`)
+    }
 
     proxiedSecurityModule = new ethers.Contract(
         securityModuleProxy.address,
@@ -231,6 +495,7 @@ async function main() {
         owner
     )
 
+    // TODO: Check if newly deployed
     await proxiedSecurityModule.initialize(
         moduleRegistry.address,
         lockPeriod,
@@ -244,9 +509,11 @@ async function main() {
         owner
     )
 
+    // TODO: Check if newly deployed
     await proxiedTransactionModule.initialize(moduleRegistry.address)
     console.log('transaction module', proxiedTransactionModule.address)
 
+    // TODO: Check if newly deployed
     // register the module
     let res = await moduleRegistry.registerModule(
         proxiedTransactionModule.address,
@@ -259,10 +526,44 @@ async function main() {
     )
     await res1.wait()
 
+    // delopy Wallet
     factory = await ethers.getContractFactory('Wallet')
-    masterWallet = await factory.deploy()
-    await masterWallet.deployed()
-    console.log('master wallet', masterWallet.address)
+    if (process.env['WALLET']) {
+        const WalletArtifact = await hre.artifacts.readArtifact('Wallet')
+        const WalletABI = WalletArtifact.abi
+        masterWallet = new ethers.Contract(
+            process.env['WALLET'],
+            WalletABI,
+            owner
+        )
+        console.log('Wallet has been deployed before')
+    } else {
+        const WalletArtifact = await hre.artifacts.readArtifact('Wallet')
+
+        const iface = new ethers.utils.Interface(WalletArtifact.abi)
+        const bytecode =
+            WalletArtifact.bytecode + iface.encodeDeploy([]).slice(2)
+        const masterWalletAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
+
+        const tx = await create2Factory.deploy(
+            ethers.constants.AddressZero,
+            SALT1,
+            bytecode
+        )
+        await tx.wait()
+
+        masterWallet = new ethers.Contract(
+            masterWalletAddress,
+            WalletArtifact.abi,
+            owner
+        )
+
+        console.log('Wallet is now newly deployed')
+        console.log(`Wallet ${masterWallet.address} constructor()`)
+    }
 
     console.log('unsorted', user1.address, user2.address, user3.address)
     let signers = [user1, user2, user3]
@@ -275,10 +576,36 @@ async function main() {
 
     console.log('sorted', user1.address, user2.address, user3.address)
 
-    let proxy = await (await ethers.getContractFactory('Proxy')).deploy(
-        masterWallet.address
-    )
-    console.log('proxy address', proxy.address)
+    // delopy Proxy
+    factory = await ethers.getContractFactory('Proxy')
+    if (process.env['PROXY']) {
+        const ProxyArtifact = await hre.artifacts.readArtifact('Proxy')
+        const ProxyABI = ProxyArtifact.abi
+        proxy = new ethers.Contract(process.env['PROXY'], ProxyABI, owner)
+        console.log('Proxy has been deployed before')
+    } else {
+        const ProxyArtifact = await hre.artifacts.readArtifact('Proxy')
+        const iface = new ethers.utils.Interface(ProxyArtifact.abi)
+        const bytecode =
+            ProxyArtifact.bytecode +
+            iface.encodeDeploy([masterWallet.address]).slice(2)
+        const proxyAddress = await create2Factory.findCreate2Address(
+            SALT1,
+            ethers.utils.keccak256(bytecode)
+        )
+
+        // Proxy is Ownable, should transfer the ownership back to the owner from Create2Factory
+        const tx = await create2Factory.deploy(owner.address, SALT1, bytecode)
+        await tx.wait()
+
+        proxy = new ethers.Contract(proxyAddress, ProxyArtifact.abi, owner)
+
+        console.log('Proxy is now newly deployed')
+        console.log(
+            `Proxy ${proxy.address} constructor(${masterWallet.address})`
+        )
+    }
+
     let walletAddress = await proxy.getAddress(salts[0])
     expect(walletAddress).to.exist
     console.log('proxy wallet', walletAddress)
