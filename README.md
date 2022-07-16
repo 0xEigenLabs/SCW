@@ -1,6 +1,6 @@
 # Eigen Self-Custodial Wallet
 
-Eigen NCW(Self-custodial Wallet) allows you:
+Eigen SCW(Self-custodial Wallet) allows you:
 
 - [x] Use multi-signature to manager your asset
 - [x] Recover the owner by Social Recovery
